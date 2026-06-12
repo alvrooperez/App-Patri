@@ -56,7 +56,57 @@ jobs:
       - name: Capacitor Sync
         run: npx cap sync android
 
-      # 7. Configurar Java JDK 21 (requerido por Android Gradle moderno)
+      # 7. Sobrescribir icono de la app con el nuestro (assets/icon/)
+      - name: Override app icons
+        run: |
+          RES="android/app/src/main/res"
+          # Mipmaps en diferentes densidades
+          mkdir -p "$RES/mipmap-mdpi" "$RES/mipmap-hdpi" "$RES/mipmap-xhdpi" "$RES/mipmap-xxhdpi" "$RES/mipmap-xxxhdpi"
+          # Usamos ImageMagick si esta disponible, sino Pillow via Python
+          if command -v convert &> /dev/null; then
+            echo "Usando ImageMagick"
+            for SIZE_NAME in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+              DENSITY="${SIZE_NAME%:*}"; SIZE="${SIZE_NAME#*:}";
+              convert "dist/assets/icon/icon-512.png" -resize "${SIZE}x${SIZE}" \
+                "$RES/mipmap-${DENSITY}/ic_launcher.png"
+              convert "dist/assets/icon/icon-512.png" -resize "${SIZE}x${SIZE}" \
+                "$RES/mipmap-${DENSITY}/ic_launcher_round.png"
+            done
+          elif command -v python3 &> /dev/null; then
+            echo "Usando Pillow"
+            python3 -c "
+            from PIL import Image
+            import os
+            src = Image.open('dist/assets/icon/icon-512.png')
+            sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+            for d, s in sizes.items():
+                os.makedirs(f'android/app/src/main/res/mipmap-{d}', exist_ok=True)
+                src.resize((s, s), Image.LANCZOS).save(f'android/app/src/main/res/mipmap-{d}/ic_launcher.png')
+                src.resize((s, s), Image.LANCZOS).save(f'android/app/src/main/res/mipmap-{d}/ic_launcher_round.png')
+            print('Iconos generados en todas las densidades')
+            "
+          else
+            echo "::error::Ni ImageMagick ni Python3+Pillow disponibles, no puedo redimensionar el icono"
+            exit 1
+          fi
+          # Forzar uso de nuestro icono (no el adaptive de Android 8+)
+          rm -f "$RES/mipmap-anydpi-v26/ic_launcher.xml" "$RES/mipmap-anydpi-v26/ic_launcher_round.xml" 2>/dev/null || true
+
+      # 8. Sobrescribir el nombre de la app
+      - name: Override app name
+        run: |
+          RES="android/app/src/main/res/values"
+          mkdir -p "$RES"
+          # Si Capacitor no creo strings.xml, lo creamos
+          if [ ! -f "$RES/strings.xml" ]; then
+            echo "<resources><string name=\"app_name\">Mi Dia a Dia</string></resources>" > "$RES/strings.xml"
+          else
+            # Reemplazar app_name (cuidado con sed en Windows-like paths, usamos perl)
+            perl -i -pe 's|<string name="app_name">[^<]*</string>|<string name="app_name">Mi Dia a Dia</string>|' "$RES/strings.xml"
+          fi
+          cat "$RES/strings.xml"
+
+      # 9. Configurar Java JDK 21 (requerido por Android Gradle moderno)
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -64,17 +114,17 @@ jobs:
           java-version: '21'
 
       # 8. Permisos de ejecucion al gradlew
-      - name: Grant Execute Permission to Gradlew
+      - name: Grant Execute Permission to Gradlew (10)
         run: chmod +x android/gradlew
 
       # 9. Compilar el APK debug con Gradle
-      - name: Build APK with Gradle
+      - name: Build APK with Gradle (11)
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon
 
       # 10. Subir el APK como artefacto descargable
-      - name: Upload APK Artifact
+      - name: Upload APK Artifact (12)
         uses: actions/upload-artifact@v4
         with:
           name: mi-dia-a-dia-apk
@@ -83,7 +133,7 @@ jobs:
           retention-days: 30
 
       # 11. Resumen con instrucciones
-      - name: Summary
+      - name: Summary (13)
         if: success()
         run: |
           echo "### :tada: APK construida con exito!" >> "$GITHUB_STEP_SUMMARY"
