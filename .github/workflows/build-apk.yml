@@ -84,10 +84,15 @@ jobs:
           JAVA_HOME: ${{ steps.java.outputs.java_home }}
         run: |
           # Bubblewrap init es interactivo: 1) instalar JDK? 2) ruta al JDK?
-          # Como ya tenemos Java 17 (setup-java), contestamos "N" y luego
-          # le damos la ruta. Despues deja vacio para el resto de prompts.
+          # 3) aplicacion ID? 4) version? 5+) metadatos.
+          #
+          # Al "Y/n" del JDK le decimos "N" (ya lo tenemos).
+          # Luego Bubblewrap IMPRIME la ruta del JDK que el encontro y
+          # pregunta "Path to your existing JDK 17:" -> le damos Enter (vacio)
+          # para que use la que el ya encontro.
+          # El resto de prompts son metadatos opcionales -> todos Enter.
           if [ ! -d ".bubblewrap" ]; then
-            printf 'N\n%s\n\n\n\n\n\n' "$JAVA_HOME" | bubblewrap init \
+            printf 'N\n\n\n\n\n\n\n\n' | bubblewrap init \
               --manifest "${{ steps.origin.outputs.origin }}/manifest.json" \
               --directory .bubblewrap
           fi
