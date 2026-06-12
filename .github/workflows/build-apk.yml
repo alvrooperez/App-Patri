@@ -89,6 +89,8 @@ jobs:
       #    los problemas de indentacion con heredocs en YAML
       - name: Override app icons
         run: |
+          # Instalar Pillow si no esta (no viene por defecto en los runners)
+          python3 -c "import PIL" 2>/dev/null || pip install --quiet Pillow
           python3 scripts/make_icons.py
           # Forzar uso de nuestro icono (no el adaptive de Android 8+)
           RES="android/app/src/main/res"
