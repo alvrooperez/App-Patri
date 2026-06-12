@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard - Mi Dia a Dia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fff7f4;
+    --bg-2: #fdeef0;
+    --surface: #ffffff;
+    --surface-2: #fdf3f5;
+    --primary: #f4a8bd;
+    --primary-deep: #e88aa4;
+    --primary-soft: #fde0e7;
+    --lavender: #c8b6e2;
+    --lavender-soft: #ece4f5;
+    --mint: #a8d8c5;
+    --mint-soft: #dff0e8;
+    --peach: #ffcfa7;
+    --peach-soft: #ffe9d6;
+    --text: #4a3540;
+    --text-2: #8a7383;
+    --text-mute: #b8a3ad;
+    --border: #f1d9df;
+    --shadow-sm: 0 2px 8px rgba(232, 138, 164, 0.08);
+    --shadow: 0 6px 20px rgba(232, 138, 164, 0.12);
+    --shadow-lg: 0 12px 40px rgba(232, 138, 164, 0.2);
+    --radius: 18px;
+    --radius-sm: 12px;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Quicksand', system-ui, sans-serif;
+    background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 30%, var(--bg) 100%);
+    color: var(--text);
+    margin: 0;
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 28px 22px 80px; }
+  header { text-align: center; margin-bottom: 24px; }
+  h1 { font-family: 'Caveat', cursive; font-size: 42px; color: var(--primary-deep); margin: 0 0 4px; font-weight: 700; }
+  .sub { color: var(--text-2); font-size: 14px; }
+
+  .tabs { display: flex; gap: 6px; background: var(--surface); border-radius: 26px; padding: 6px; box-shadow: var(--shadow); margin: 0 auto 22px; max-width: 560px; }
+  .tab { flex: 1; border: 0; background: transparent; padding: 10px 8px; border-radius: 20px; font-family: inherit; font-weight: 700; font-size: 13px; color: var(--text-2); cursor: pointer; transition: all 0.2s; }
+  .tab.active { background: linear-gradient(135deg, var(--primary-soft), var(--lavender-soft)); color: var(--primary-deep); }
+
+  .panel { background: var(--surface); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 4px; font-size: 18px; }
+  .panel p.sub { margin: 0 0 16px; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fade 0.25s; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== FOTOS ===== */
+  .pool-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pill-info { font-size: 12px; background: var(--primary-soft); color: var(--primary-deep); padding: 6px 12px; border-radius: 14px; font-weight: 600; }
+  .pill-info.green { background: var(--mint-soft); color: #3a7a5e; }
+  .pill-info.warn { background: #fff3d6; color: #8a6a20; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .photo-card {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 1;
+    cursor: pointer;
+    transition: transform 0.15s;
+    border: 3px solid transparent;
+  }
+  .photo-card:hover { transform: translateY(-2px); }
+  .photo-card.selected { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+  .photo-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo-card .meta {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(0deg, rgba(0,0,0,0.7), transparent);
+    color: white;
+    padding: 8px 10px;
+    font-size: 11px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .photo-card .selected-tag {
+    position: absolute; top: 8px; left: 8px;
+    background: var(--primary); color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 8px;
+    text-transform: uppercase;
+  }
+  .photo-card .actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
+  .photo-card:hover .actions { opacity: 1; }
+  .photo-card .actions button { width: 30px; height: 30px; border: 0; border-radius: 50%; background: rgba(0,0,0,0.55); color: white; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .photo-card .actions button:hover { background: rgba(0,0,0,0.8); }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-2); }
+  .empty-state .ico { font-size: 56px; opacity: 0.4; margin-bottom: 8px; }
+
+  /* ===== ICONO ===== */
+  .icon-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 760px) { .icon-grid { grid-template-columns: 1fr; } }
+  .icon-preview-box {
+    background: linear-gradient(135deg, var(--surface-2), #f8e0e8);
+    border-radius: var(--radius);
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .icon-stage { width: 220px; height: 220px; position: relative; display: flex; align-items: center; justify-content: center; }
+  .icon-stage .icon-bg { position: absolute; inset: 0; border-radius: 44px; background: linear-gradient(135deg, var(--primary), var(--lavender)); box-shadow: var(--shadow-lg); overflow: hidden; }
+  .icon-stage .icon-bg img { width: 100%; height: 100%; object-fit: cover; }
+  .icon-stage .icon-badge { position: absolute; bottom: -8px; right: -8px; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #ffd5a0, #ffb3b3); display: flex; align-items: center; justify-content: center; font-size: 32px; box-shadow: var(--shadow); border: 4px solid white; }
+  .icon-stage .icon-label { position: absolute; bottom: 12px; left: 12px; right: 12px; text-align: center; color: white; font-family: 'Caveat', cursive; font-size: 22px; text-shadow: 0 2px 8px rgba(0,0,0,0.5); pointer-events: none; }
+
+  .icon-sizes { display: flex; gap: 18px; align-items: flex-end; margin-top: 10px; }
+  .icon-size-cell { text-align: center; }
+  .icon-size-cell .label { font-size: 10px; color: var(--text-2); margin-top: 4px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+  .icon-size-cell canvas { border-radius: 12px; box-shadow: var(--shadow-sm); display: block; }
+
+  .controls { display: flex; flex-direction: column; gap: 14px; }
+  .control { display: flex; flex-direction: column; gap: 6px; }
+  .control label { font-size: 12px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .control select, .control input[type="text"] { border: 0; background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; font-family: inherit; font-size: 14px; color: var(--text); }
+  .control select:focus, .control input:focus { outline: 2px solid var(--primary); }
+  .control input[type="range"] { width: 100%; }
+  .swatch-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch { width: 36px; height: 36px; border-radius: 10px; cursor: pointer; border: 3px solid transparent; transition: transform 0.15s; }
+  .swatch.sel { transform: scale(1.1); border-color: white; box-shadow: 0 0 0 2px var(--text); }
+  .swatch.p1 { background: linear-gradient(135deg, #f4a8bd, #c8b6e2); }
+  .swatch.p2 { background: linear-gradient(135deg, #ffcfa7, #f4a8bd); }
+  .swatch.p3 { background: linear-gradient(135deg, #a8d8c5, #b8d8e8); }
+  .swatch.p4 { background: linear-gradient(135deg, #c8b6e2, #b8d8e8); }
+  .swatch.p5 { background: linear-gradient(135deg, #e88aa4, #d4a8e8); }
+  .swatch.p6 { background: linear-gradient(135deg, #ffd5a0, #ffb3b3); }
+
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge-opt { width: 44px; height: 44px; border: 0; background: var(--surface-2); border-radius: 12px; font-size: 22px; cursor: pointer; }
+  .badge-opt.sel { background: var(--primary); transform: scale(1.1); }
+
+  .row { display: flex; gap: 10px; align-items: center; }
+  .btn { border: 0; padding: 11px 18px; border-radius: 12px; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; transition: transform 0.1s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: linear-gradient(135deg, var(--primary), var(--lavender)); color: white; }
+  .btn-ghost { background: var(--surface-2); color: var(--text-2); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ===== MENSAJES ===== */
+  .msg-cat { background: var(--surface-2); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .msg-cat h3 { margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .msg-cat h3 .key { font-size: 11px; background: var(--primary-soft); color: var(--primary-deep); padding: 2px 8px; border-radius: 6px; font-family: monospace; }
+  .msg-cat p.hint { margin: 0 0 10px; color: var(--text-2); font-size: 12px; }
+  .msg-cat .title-input { width: 100%; border: 0; background: white; border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+  .msg-cat textarea { width: 100%; border: 0; background: white; border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 14px; min-height: 100px; resize: vertical; }
+  .msg-cat textarea:focus, .msg-cat .title-input:focus { outline: 2px solid var(--primary); }
+  .msg-status { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+
+  /* ===== TOAST ===== */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: white; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow-lg); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 2000; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .small { font-size: 12px; }
+  .muted { color: var(--text-mute); }
+  code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Dashboard</h1>
+    <div class="sub">Tus fotos, el icono de la app y los mensajes</div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="photos">\u{1F4F8} Fotos</button>
+    <button class="tab" data-tab="icon">\u{1F3F7} Icono</button>
+    <button class="tab" data-tab="messages">\u{1F4AC} Mensajes</button>
+  </nav>
+
+  <!-- ========== TAB: FOTOS ========== -->
+  <section class="tab-content active" data-tab="photos">
+    <div class="panel">
+      <h2>Tus fotos del pool</h2>
+      <p class="sub">Estas son las fotos que has metido en <code>assets/pool/</code> y que la app usa para el saludo y los mensajes de animo.</p>
+
+      <div class="pool-bar" id="pool-bar" hidden>
+        <span class="pill-info green" id="pool-count">0 fotos</span>
+        <span class="pill-info" id="pool-size">0 KB total</span>
+        <span class="pill-info" id="pool-status">OK</span>
+        <span style="flex:1"></span>
+        <button class="btn btn-ghost" id="reload-pool">\u{1F504} Recargar</button>
+      </div>
+
+      <div class="grid" id="photo-grid"></div>
+      <div class="empty-state" id="photos-empty">
+        <div class="ico">\u{1F4F8}</div>
+        <div>No hay fotos en <code>assets/pool/_opt/</code></div>
+        <div class="small muted" style="margin-top:8px">Mete JPGs en <code>assets/pool/</code> y ejecuta <code>python _optimize.py</code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TAB: ICONO ========== -->
+  <section class="tab-content" data-tab="icon">
+    <div class="panel">
+      <h2>Icono de la app</h2>
+      <p class="sub">Elige una foto, un gradiente y un badge. Se generan 3 versiones (32, 180 y 512 px) listas para favicon, apple-touch-icon y PWA.</p>
+
+      <div class="icon-grid">
+        <div class="icon-preview-box">
+          <div class="icon-stage" id="icon-stage">
+            <div class="icon-bg" id="icon-bg"></div>
+            <div class="icon-label" id="icon-label">Mi dia a dia</div>
+            <div class="icon-badge" id="icon-badge">\u2728</div>
+          </div>
+          <div class="icon-sizes" id="icon-sizes">
+            <div class="icon-size-cell"><canvas id="ic-32" width="32" height="32"></canvas><div class="label">32</div></div>
+            <div class="icon-size-cell"><canvas id="ic-180" width="180" height="180"></canvas><div class="label">180</div></div>
+            <div class="icon-size-cell"><canvas id="ic-512" width="512" height="512"></canvas><div class="label">512</div></div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="control">
+            <label>Foto</label>
+            <select id="icon-photo"></select>
+          </div>
+
+          <div class="control">
+            <label>Gradiente de fondo</label>
+            <div class="swatch-row" id="gradient-row"></div>
+          </div>
+
+          <div class="control">
+            <label>Badge</label>
+            <div class="badge-row" id="badge-row">
+              <button class="badge-opt sel" data-b="\u2728">\u2728</button>
+              <button class="badge-opt" data-b="\u{1F33F}">\u{1F33F}</button>
+              <button class="badge-opt" data-b="\u{1F4AA}">\u{1F4AA}</button>
+              <button class="badge-opt" data-b="\u{1F31F}">\u{1F31F}</button>
+              <button class="badge-opt" data-b="\u{1F49B}">\u{1F49B}</button>
+              <button class="badge-opt" data-b="\u{1F3C6}">\u{1F3C6}</button>
+              <button class="badge-opt" data-b="\u{1F525}">\u{1F525}</button>
+              <button class="badge-opt" data-b="">\u2715</button>
+            </div>
+          </div>
+
+          <div class="control">
+            <label>Texto (opcional)</label>
+            <input type="text" id="icon-text" value="Mi dia a dia" maxlength="20" />
+          </div>
+
+          <div class="control">
+            <label>Estilo foto: <span id="photo-style-val">cover</span></label>
+            <select id="photo-style">
+              <option value="cover">Cubrir (recorta)</option>
+              <option value="contain">Encajar (con margen)</option>
+              <option value="blur">Fondo borroso</option>
+            </select>
+          </div>
+
+          <div class="row" style="margin-top:8px">
+            <button class="btn btn-ghost" id="download-icon-32">PNG 32</button>
+            <button class="btn btn-ghost" id="download-icon-180">PNG 180</button>
+            <button class="btn btn-primary" id="download-icon-512">PNG 512</button>
+          </div>
+          <p class="small muted">Descarga los 3 PNGs y metelos en <code>assets/icon/</code> con esos nombres. Despues recarga <code>index.html</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TAB: MENSAJES ========== -->
+  <section class="tab-content" data-tab="messages">
+    <div class="panel">
+      <h2>Mensajes de animo</h2>
+      <p class="sub">Edita las frases de cada categoria. Se guardan en <code>mensajes.json</code> y la app las lee al arrancar.</p>
+      <div id="msg-cats"></div>
+      <div class="msg-status" id="msg-status"></div>
+      <div class="row" style="margin-top: 14px">
+        <button class="btn btn-ghost" id="msg-reset">Reset a defaults</button>
+        <button class="btn btn-primary" id="msg-save">Descargar mensajes.json</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========================================================================
+   DASHBOARD
+   ======================================================================== */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+let poolPhotos = [];
+let iconState = { photoIdx: 0, gradient: 'p1', badge: '\u2728', text: 'Mi dia a dia', style: 'cover' };
+
+/* ===== TABS ===== */
+$$('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    $$('.tab').forEach(x => x.classList.remove('active'));
+    $$('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    $(`.tab-content[data-tab="${t.dataset.tab}"]`).classList.add('active');
+    if (t.dataset.tab === 'icon') renderIcon();
+  });
+});
+
+/* ===== TOAST ===== */
+let toastT;
+function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 1800); }
+
+/* ===== POOL DE FOTOS ===== */
+async function loadPool() {
+  try {
+    const r = await fetch('assets/pool/manifest.json?t=' + Date.now());
+    if (r.ok) { const data = await r.json(); poolPhotos = data.photos || []; }
+  } catch (e) { poolPhotos = []; }
+  renderPool();
+  populateIconSelect();
+}
+
+$('#reload-pool').addEventListener('click', loadPool);
+
+function renderPool() {
+  const grid = $('#photo-grid');
+  const empty = $('#photos-empty');
+  const bar = $('#pool-bar');
+  if (!poolPhotos.length) { grid.innerHTML = ''; empty.style.display = 'block'; bar.hidden = true; return; }
+  empty.style.display = 'none';
+  bar.hidden = false;
+  $('#pool-count').textContent = poolPhotos.length + ' fotos';
+  const totalKb = Math.round(poolPhotos.reduce((a, p) => a + (p.optKb || 0), 0));
+  $('#pool-size').textContent = totalKb + ' KB optimizadas (' + Math.round(totalKb / 1024 * 10) / 10 + ' MB)';
+  const totalOrig = poolPhotos.reduce((a, p) => a + (p.origKb || 0), 0);
+  const savings = totalOrig ? Math.round((1 - totalKb / totalOrig) * 100) : 0;
+  $('#pool-status').textContent = 'Ahorro: ' + savings + '%';
+
+  grid.innerHTML = '';
+  poolPhotos.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'photo-card' + (i === iconState.photoIdx ? ' selected' : '');
+    card.innerHTML = `
+      <img src="${p.thumb}" alt="" />
+      ${i === iconState.photoIdx ? '<div class="selected-tag">Seleccionada</div>' : ''}
+      <div class="actions">
+        <button data-act="use" title="Usar para el icono">\u{1F3F7}</button>
+      </div>
+      <div class="meta">
+        <span>${p.id.substring(0, 10)}</span>
+        <span>${p.optKb}KB</span>
+      </div>
+    `;
+    card.querySelector('[data-act=use]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      iconState.photoIdx = i;
+      $$('.tab').forEach(x => x.classList.remove('active'));
+      $$('.tab-content').forEach(x => x.classList.remove('active'));
+      $('[data-tab=icon]').classList.add('active');
+      $('[data-tab=icon]').classList.add('active');
+      $('.tab-content[data-tab=icon]').classList.add('active');
+      renderIcon();
+      renderPool();
+    });
+    card.addEventListener('click', () => {
+      iconState.photoIdx = i;
+      renderIcon();
+      renderPool();
+    });
+    grid.appendChild(card);
+  });
+}
+
+/* ===== ICONO ===== */
+const GRADIENTS = {
+  p1: ['#f4a8bd', '#c8b6e2'],   // rosa + lavanda
+  p2: ['#ffcfa7', '#f4a8bd'],   // melocoton + rosa
+  p3: ['#a8d8c5', '#b8d8e8'],   // menta + cielo
+  p4: ['#c8b6e2', '#b8d8e8'],   // lavanda + cielo
+  p5: ['#e88aa4', '#d4a8e8'],   // rosa + lila
+  p6: ['#ffd5a0', '#ffb3b3'],   // melon + coral
+};
+const BADGE_BG = ['linear-gradient(135deg, #ffd5a0, #ffb3b3)', 'linear-gradient(135deg, #c8b6e2, #e88aa4)', 'linear-gradient(135deg, #a8d8c5, #b8d8e8)'];
+
+function populateIconSelect() {
+  const sel = $('#icon-photo');
+  sel.innerHTML = '';
+  if (!poolPhotos.length) {
+    sel.innerHTML = '<option value="0">No hay fotos en el pool</option>';
+    return;
+  }
+  poolPhotos.forEach((p, i) => {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = '#' + (i+1) + ' - ' + p.id.substring(0, 20);
+    sel.appendChild(o);
+  });
+  sel.value = iconState.photoIdx;
+}
+
+$('#icon-photo').addEventListener('change', (e) => { iconState.photoIdx = parseInt(e.target.value); renderIcon(); renderPool(); });
+
+// Gradient swatches
+const gradRow = $('#gradient-row');
+Object.keys(GRADIENTS).forEach((k, i) => {
+  const sw = document.createElement('div');
+  sw.className = 'swatch ' + k + (i === 0 ? ' sel' : '');
+  sw.title = 'Gradiente ' + (i+1);
+  sw.addEventListener('click', () => {
+    $$('#gradient-row .swatch').forEach(x => x.classList.remove('sel'));
+    sw.classList.add('sel');
+    iconState.gradient = k;
+    renderIcon();
+  });
+  gradRow.appendChild(sw);
+});
+
+// Badge options
+$$('#badge-row .badge-opt').forEach(b => {
+  b.addEventListener('click', () => {
+    $$('#badge-row .badge-opt').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+    iconState.badge = b.dataset.b;
+    renderIcon();
+  });
+});
+
+$('#icon-text').addEventListener('input', (e) => { iconState.text = e.target.value; renderIcon(); });
+$('#photo-style').addEventListener('change', (e) => { iconState.style = e.target.value; renderIcon(); $('#photo-style-val').textContent = e.target.value; });
+
+let iconImage = null;
+let iconImageLoaded = false;
+
+function ensureImage() {
+  if (!poolPhotos.length) return;
+  const p = poolPhotos[iconState.photoIdx];
+  if (!iconImage || iconImage.dataset.src !== p.src) {
+    iconImage = new Image();
+    iconImage.crossOrigin = 'anonymous';
+    iconImage.dataset.src = p.src;
+    iconImage.onload = () => { iconImageLoaded = true; renderIcon(); };
+    iconImageLoaded = false;
+    iconImage.src = p.src;
+  }
+}
+
+function renderIcon() {
+  if (!poolPhotos.length) return;
+  ensureImage();
+  drawIconTo(document.getElementById('icon-stage'), 220, false);
+  drawIconTo(document.getElementById('ic-32'), 32, true);
+  drawIconTo(document.getElementById('ic-180'), 180, true);
+  drawIconTo(document.getElementById('ic-512'), 512, true);
+}
+
+function drawIconTo(target, size, toCanvas) {
+  const [c1, c2] = GRADIENTS[iconState.gradient];
+  let canvas, ctx;
+  if (toCanvas) { canvas = target; canvas.width = size; canvas.height = size; ctx = canvas.getContext('2d'); }
+  else {
+    // render to a temp canvas and put as background of the stage div
+    canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size; ctx = canvas.getContext('2d');
+  }
+
+  // rounded square background
+  const r = size * 0.22;
+  ctx.clearRect(0, 0, size, size);
+  roundRect(ctx, 0, 0, size, size, r);
+  ctx.save();
+  ctx.clip();
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, c1); grad.addColorStop(1, c2);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, size, size);
+
+  // photo
+  if (iconImage && iconImageLoaded) {
+    if (iconState.style === 'blur') {
+      // big blurred background photo
+      ctx.filter = 'blur(' + (size * 0.04) + 'px)';
+      drawCover(ctx, iconImage, size, size);
+      ctx.filter = 'none';
+      // tint
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.fillRect(0, 0, size, size);
+    } else if (iconState.style === 'contain') {
+      const padding = size * 0.1;
+      drawContain(ctx, iconImage, size, size, padding);
+    } else {
+      drawCover(ctx, iconImage, size, size);
+    }
+  }
+  ctx.restore();
+
+  // optional text label
+  if (iconState.text && iconState.text.trim() && toCanvas) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, size * 0.7, size, size * 0.3);
+    ctx.fillStyle = 'white';
+    ctx.font = (size * 0.10) + 'px Caveat, cursive';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(iconState.text, size / 2, size * 0.85);
+    ctx.restore();
+  } else if (iconState.text && iconState.text.trim() && !toCanvas) {
+    // for the live preview, the label is in the HTML overlay, so we just skip
+  }
+
+  // badge
+  if (iconState.badge) {
+    const bs = size * 0.30;
+    const bx = size - bs + bs * 0.12;
+    const by = size - bs + bs * 0.12;
+    ctx.save();
+    // white border ring
+    ctx.beginPath(); ctx.arc(bx, by, bs / 2 + size * 0.025, 0, Math.PI * 2);
+    ctx.fillStyle = 'white'; ctx.fill();
+    // badge bg
+    const bg = ctx.createLinearGradient(bx - bs/2, by - bs/2, bx + bs/2, by + bs/2);
+    bg.addColorStop(0, '#ffd5a0'); bg.addColorStop(1, '#ffb3b3');
+    ctx.beginPath(); ctx.arc(bx, by, bs / 2, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    // emoji
+    ctx.font = (bs * 0.62) + 'px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(iconState.badge, bx, by + bs * 0.02);
+    ctx.restore();
+  }
+
+  if (!toCanvas) {
+    const dataUrl = canvas.toDataURL('image/png');
+    document.getElementById('icon-bg').innerHTML = '<img src="' + dataUrl + '" alt="" />';
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); }
+function drawCover(ctx, img, w, h) { const ratio = Math.max(w / img.width, h / img.height); const dw = img.width * ratio; const dh = img.height * ratio; const dx = (w - dw) / 2; const dy = (h - dh) / 2; ctx.drawImage(img, dx, dy, dw, dh); }
+function drawContain(ctx, img, w, h, pad) { const avail = w - pad*2; const ratio = Math.min(avail / img.width, avail / img.height); const dw = img.width * ratio; const dh = img.height * ratio; const dx = (w - dw) / 2; const dy = (h - dh) / 2; ctx.drawImage(img, dx, dy, dw, dh); }
+
+/* downloads */
+function makeIconCanvas(size) {
+  const c = document.createElement('canvas'); c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  const stage = { getContext: () => ctx, width: size, height: size };
+  drawIconTo(stage, size, true);
+  return c;
+}
+function downloadIcon(size) {
+  if (!poolPhotos.length) { toast('No hay fotos'); return; }
+  const c = makeIconCanvas(size);
+  c.toBlob((b) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'icon-' + size + '.png';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 200);
+    toast('Descargado icon-' + size + '.png');
+  }, 'image/png');
+}
+$('#download-icon-32').addEventListener('click', () => downloadIcon(32));
+$('#download-icon-180').addEventListener('click', () => downloadIcon(180));
+$('#download-icon-512').addEventListener('click', () => downloadIcon(512));
+
+/* ===== MENSAJES ===== */
+let MESSAGES = {
+  racha:   { titulo: 'Vas como una moto \u{1F525}', frases: ['Llevas {n} dias seguidos, esto no es casualidad', 'Semana completa, que nivel', 'Ni un dia fuera, pura constancia'] },
+  animo:   { titulo: 'Venga, hoy tambien', frases: ['Venga, tu puedes', 'Manana tambien cuenta', 'Sin prisa, pero sin pausa'] },
+  logro:   { titulo: 'Lo conseguiste! \u{1F389}', frases: ['Lo conseguiste! \u{1F389}', 'Mira lo que has logrado', 'Esto no para, quien te para'] },
+  fuerte:  { titulo: 'Que fuerte estas', frases: ['Oye, estas muy fuerte', 'Cada dia un poquito mas', 'Se nota el trabajo, en serio'] },
+  campeona:{ titulo: 'Que campeona', frases: ['Que campeona', 'Eres una crack', 'Lo bordas siempre'] },
+};
+async function loadMessages() {
+  try {
+    const r = await fetch('mensajes.json?t=' + Date.now());
+    if (r.ok) MESSAGES = Object.assign(MESSAGES, await r.json());
+  } catch (e) {}
+  renderMessages();
+}
+const MSG_META = {
+  racha: 'Cuando la racha sube a multiplo de 5 (5, 10, 15...). {n} = numero de dias.',
+  animo: 'Para habitos sin objetivo o cuando vuelves tras fallar.',
+  logro: 'Cuando completas un objetivo numerico.',
+  fuerte: 'Cuando bates un PR en el gym.',
+  campeona: 'Tras una racha rota, al volver con todo.',
+};
+function renderMessages() {
+  const c = $('#msg-cats'); c.innerHTML = '';
+  Object.keys(MESSAGES).forEach(key => {
+    const cat = MESSAGES[key];
+    const div = document.createElement('div');
+    div.className = 'msg-cat';
+    div.innerHTML = `
+      <h3>${cat.titulo || key} <span class="key">${key}</span></h3>
+      <p class="hint">${MSG_META[key] || ''}</p>
+      <input class="title-input" data-k="titulo" value="${escapeAttr(cat.titulo || '')}" placeholder="Titulo de la celebracion" />
+      <textarea data-k="frases" placeholder="Una frase por linea">${(cat.frases || []).join('\n')}</textarea>
+    `;
+    div.querySelectorAll('input, textarea').forEach(inp => {
+      inp.addEventListener('input', () => {
+        if (inp.dataset.k === 'titulo') cat.titulo = inp.value;
+        else cat.frases = inp.value.split('\n').map(s => s.trim()).filter(Boolean);
+        $('#msg-status').textContent = 'Cambios sin guardar (pulsa "Descargar")';
+      });
+    });
+    c.appendChild(div);
+  });
+}
+function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+$('#msg-save').addEventListener('click', () => {
+  const json = JSON.stringify(MESSAGES, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mensajes.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 200);
+  toast('Descargado. Muevelo a la carpeta de la app.');
+  $('#msg-status').textContent = 'Descargado. Mueve el archivo y recarga la app.';
+});
+$('#msg-reset').addEventListener('click', () => {
+  if (!confirm('Restaurar los mensajes por defecto?')) return;
+  MESSAGES = {
+    racha:   { titulo: 'Vas como una moto \u{1F525}', frases: ['Llevas {n} dias seguidos, esto no es casualidad', 'Semana completa, que nivel', 'Ni un dia fuera, pura constancia'] },
+    animo:   { titulo: 'Venga, hoy tambien', frases: ['Venga, tu puedes', 'Manana tambien cuenta', 'Sin prisa, pero sin pausa'] },
+    logro:   { titulo: 'Lo conseguiste! \u{1F389}', frases: ['Lo conseguiste! \u{1F389}', 'Mira lo que has logrado', 'Esto no para, quien te para'] },
+    fuerte:  { titulo: 'Que fuerte estas', frases: ['Oye, estas muy fuerte', 'Cada dia un poquito mas', 'Se nota el trabajo, en serio'] },
+    campeona:{ titulo: 'Que campeona', frases: ['Que campeona', 'Eres una crack', 'Lo bordas siempre'] },
+  };
+  renderMessages();
+  toast('Restaurado (aun no descargado)');
+});
+
+/* ===== INIT ===== */
+loadPool();
+loadMessages();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Archivos locales del dashboard, no van al repo
+/server.py
+/check.js
+/preview*.jpg
+_preview*.jpg
+_sample*.jpg
+tmp_*
+
+# NO subir las fotos originales (pesan 2-3MB cada una).
+# El script _optimize.py las reduce a 100-400KB en assets/pool/_opt/
+# que SI se suben al repo.
+assets/pool/*.jpg
+assets/pool/*.jpeg
+assets/pool/*.png
+assets/pool/*.webp
+assets/pool/*.heic
+
+# Los thumbs de la carpeta _opt tampoco (se regeneran)
+assets/pool/_opt/*_thumb.jpg
+
+# Cache de Python
+__pycache__/
+*.pyc
+
+# Node (por si alguien anade npm)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,46 @@
+{
+  "name": "Mi Dia a Dia",
+  "short_name": "Mi Dia",
+  "description": "Habitos y gimnasio - con mucho carino",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff7f4",
+  "theme_color": "#f4a8bd",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["lifestyle", "health", "fitness"],
+  "icons": [
+    {
+      "src": "assets/icon/icon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Habitos",
+      "url": "./index.html#habitos",
+      "icons": [{ "src": "assets/icon/icon-180.png", "sizes": "180x180" }]
+    },
+    {
+      "name": "Gimnasio",
+      "url": "./index.html#gimnasio",
+      "icons": [{ "src": "assets/icon/icon-180.png", "sizes": "180x180" }]
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+name: Build APK
+
+# Buildea un APK firmada de la PWA con Bubblewrap (oficial de Google).
+# Se ejecuta en cada push a main y manualmente desde Actions.
+#
+# QUE PASA AQUI:
+#  1. Bubblewrap genera una "clave de debug" (unica para este repo, se guarda
+#     en el secret DIGITALASSETLINK_KEY).
+#  2. Buildea el APK apuntando a la URL del TWA_ORIGIN (default: GitHub Pages).
+#  3. Sube el APK como artifact descargable.
+#
+# COMO LO USA TU NOVIA:
+#  1. Push a main
+#  2. Actions -> build-apk -> run mas reciente -> Artifacts -> app-debug-apk
+#  3. Descarga el .apk, mandaselo por WhatsApp/Telegram
+#  4. En el movil Android, abrir y "Instalar de fuente desconocida"
+#
+# SI QUIERES SUBIR A PLAY STORE:
+#  - Necesitas una cuenta de desarrollador ($25 una vez)
+#  - Cambiar la debug key por una release key propia
+#  - Documentacion: https://github.com/GoogleChromeLabs/bubblewrap/blob/main/docs/quickstart.md
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Determine TWA origin
+        id: origin
+        run: |
+          if [ -n "${{ vars.TWA_ORIGIN }}" ]; then
+            ORIGIN="${{ vars.TWA_ORIGIN }}"
+          else
+            OWNER="${{ github.repository_owner }}"
+            REPO="${{ github.event.repository.name }}"
+            ORIGIN="https://${OWNER}.github.io/${REPO}"
+          fi
+          # quitar slash final
+          ORIGIN="${ORIGIN%/}"
+          echo "origin=${ORIGIN}" >> "$GITHUB_OUTPUT"
+          echo "Using TWA origin: ${ORIGIN}"
+
+      - name: Init Bubblewrap project
+        run: |
+          # Bubblewrap necesita generar twa-manifest.json a partir del manifest
+          # y el SHA256 de la clave de firma (assetlinks.json).
+          # Si ya existe el directorio .bubblewrap, no regenera.
+          if [ ! -d ".bubblewrap" ]; then
+            bubblewrap init \
+              --manifest "${{ steps.origin.outputs.origin }}/manifest.json" \
+              --directory .bubblewrap
+          fi
+
+      - name: Build APK
+        run: |
+          cd .bubblewrap
+          bubblewrap build
+
+      - name: Locate built APK
+        id: find-apk
+        run: |
+          # Bubblewrap genera app-release-signed.apk o app-release-unsigned-aligned.apk
+          APK=$(find .bubblewrap -maxdepth 3 -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::No se encontro ningun APK generado"
+            ls -laR .bubblewrap || true
+            exit 1
+          fi
+          echo "Found APK: $APK"
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+          cp "$APK" app-release.apk
+          ls -la app-release.apk
+          file app-release.apk
+
+      - name: Extract assetlinks.json for verification
+        if: success()
+        run: |
+          if [ -f ".bubblewrap/assetlinks.json" ]; then
+            echo "### assetlinks.json (para verificar la APK)" >> "$GITHUB_STEP_SUMMARY"
+            echo "Sube esto a tu webapp en /.well-known/assetlinks.json" >> "$GITHUB_STEP_SUMMARY"
+            cat .bubblewrap/assetlinks.json >> "$GITHUB_STEP_SUMMARY"
+            cp .bubblewrap/assetlinks.json assetlinks.json
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload assetlinks.json artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: assetlinks-json
+          path: assetlinks.json
+          if-no-files-found: warn
+          retention-days: 30
