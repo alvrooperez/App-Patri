@@ -25,6 +25,20 @@ __pycache__/
 # Node (por si alguien anade npm)
 node_modules/
 
+# Capacitor build output
+dist/
+
+# Android build output
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+
+# Python
+__pycache__/
+*.pyc
+
 # OS
 .DS_Store
 Thumbs.db

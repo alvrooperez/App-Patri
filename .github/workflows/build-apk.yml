@@ -25,11 +25,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       # 3. Instalar dependencias de Capacitor
       - name: Install Dependencies
-        run: npm install
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "Usando package-lock.json para install reproducible"
+            npm ci
+          else
+            echo "Sin lock file, usando npm install"
+            npm install
+          fi
 
       # 4. Copiar app-novia a dist/ (Capacitor necesita la webapp en dist/)
       #    En vez de Vite, usamos un build.js simple que copia HTML estatico
