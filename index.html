@@ -1483,6 +1483,13 @@ function hashCode(s) {
 let PHOTO_POOL = [];
 let currentPhotoIdx = 0;
 async function loadPhotoPool() {
+  // 1) Preferir la variable global inyectada por build.js (funciona en
+  //    WebViews de Capacitor/PWABuilder donde fetch() esta restringido)
+  if (Array.isArray(window.__POOL_PHOTOS__) && window.__POOL_PHOTOS__.length) {
+    PHOTO_POOL = window.__POOL_PHOTOS__;
+    return;
+  }
+  // 2) Fallback: cargar desde manifest.json via fetch (funciona en navegador normal)
   try {
     const r = await fetch('assets/pool/manifest.json?t=' + Date.now());
     if (r.ok) {

@@ -1,8 +1,10 @@
 /**
- * Build script: copia la webapp de app-novia/ a dist/
- * Ademas EMBEBE las imagenes del pool en manifest.json como base64
- * para que la app pueda usarlas sin hacer fetch() (importante en
- * Capacitor WebView donde fetch() no funciona con assets locales).
+ * Build script:
+ *  1. Copia la webapp de app-novia/ a dist/
+ *  2. EMBEBE las imagenes del pool como base64 en una variable global JS
+ *     inyectada en <head> del index.html (window.__POOL_PHOTOS__)
+ *     Esto evita que la app tenga que hacer fetch() del manifest, lo cual
+ *     falla en WebViews de Capacitor/PWABuilder por restricciones CORS.
  */
 const fs = require('fs');
 const path = require('path');
@@ -23,14 +25,15 @@ const EXCLUDE = new Set([
   'package-lock.json',
   'build.js',
   'capacitor.config.json',
-  'scripts',  // no incluir los scripts auxiliares
+  'scripts',
 ]);
 
 const EXCLUDE_EXT = new Set(['.pyc']);
+const EXCLUDE_PREFIX = ['_', 'v1-', 'v2-', 'v3-', 'v4-', 'v5-', 'v6-', 'v7-', 'v8-', 'tmp_'];
 
 function shouldExclude(name) {
   if (EXCLUDE.has(name)) return true;
-  for (const p of ['_', 'v1-', 'v2-', 'v3-', 'v4-', 'v5-', 'v6-', 'v7-', 'v8-', 'tmp_']) {
+  for (const p of EXCLUDE_PREFIX) {
     if (name.startsWith(p)) return true;
   }
   return false;
@@ -58,37 +61,64 @@ function copyRecursive(srcDir, destDir) {
   }
 }
 
-/* ========== EMBED POOL IMAGES INTO MANIFEST ========== */
-// Lee manifest.json y reemplaza cada src por base64
-function embedPoolImages() {
-  const manifestPath = path.join(DEST, 'assets', 'pool', 'manifest.json');
+/* ========== EMBED POOL INTO INDEX.HTML ========== */
+function embedPoolIntoHtml() {
+  const manifestPath = path.join(SRC, 'assets', 'pool', 'manifest.json');
   if (!fs.existsSync(manifestPath)) {
     console.log('No hay manifest.json del pool, saltando embed');
+    injectEmpty();
     return;
   }
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-  if (!manifest.photos || !manifest.photos.length) return;
+  if (!manifest.photos || !manifest.photos.length) {
+    injectEmpty();
+    return;
+  }
 
-  let totalBytes = 0;
-  for (const photo of manifest.photos) {
-    // La ruta en manifest.json apunta a "assets/pool/_opt/<id>.jpg" que ahora
-    // esta en dist/assets/pool/_opt/<id>.jpg (porque el copy recursivo la puso ahi)
-    const imgPath = path.join(DEST, photo.src);
-    if (!fs.existsSync(imgPath)) {
-      console.log(`No encuentro imagen: ${imgPath}`);
-      continue;
-    }
+  // Leer cada imagen y convertirla a data URI base64
+  const photos = [];
+  for (const p of manifest.photos) {
+    const imgPath = path.join(SRC, p.src);
+    if (!fs.existsSync(imgPath)) continue;
     const buf = fs.readFileSync(imgPath);
     const b64 = buf.toString('base64');
     const dataUri = `data:image/jpeg;base64,${b64}`;
-    photo.src = dataUri;
-    photo.thumb = dataUri;  // mismo para thumb (es pequeño)
-    photo.dataUri = true;   // flag para que la app sepa
-    totalBytes += buf.length;
+    photos.push({
+      id: p.id,
+      name: p.name,
+      src: dataUri,
+      width: p.width,
+      height: p.height,
+    });
   }
 
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  console.log(`\nPool embebido: ${manifest.photos.length} imagenes, ${(totalBytes / 1024).toFixed(0)} KB total`);
+  // Leer index.html, inyectar el script con window.__POOL_PHOTOS__ antes de </head>
+  const htmlPath = path.join(DEST, 'index.html');
+  if (!fs.existsSync(htmlPath)) {
+    console.log('No hay index.html en dist/');
+    return;
+  }
+  let html = fs.readFileSync(htmlPath, 'utf-8');
+  // Eliminar un embed anterior si existe
+  html = html.replace(/<script>window\.__POOL_PHOTOS__[\s\S]*?<\/script>/g, '');
+  // Inyectar el nuevo antes de </head>
+  const inject = `<script>window.__POOL_PHOTOS__ = ${JSON.stringify(photos)};</script>`;
+  html = html.replace('</head>', `  ${inject}\n</head>`);
+  fs.writeFileSync(htmlPath, html);
+
+  const totalBytes = photos.reduce((a, p) => a + p.src.length, 0);
+  console.log(`\nPool embebido en index.html: ${photos.length} imagenes, ${(totalBytes / 1024 / 1024).toFixed(2)} MB total`);
+}
+
+function injectEmpty() {
+  const htmlPath = path.join(DEST, 'index.html');
+  if (!fs.existsSync(htmlPath)) return;
+  let html = fs.readFileSync(htmlPath, 'utf-8');
+  html = html.replace(/<script>window\.__POOL_PHOTOS__[\s\S]*?<\/script>/g, '');
+  const inject = `<script>window.__POOL_PHOTOS__ = [];</script>`;
+  html = html.replace('</head>', `  ${inject}\n</head>`);
+  fs.writeFileSync(htmlPath, html);
+  console.log('Pool vacio inyectado');
 }
 
 /* ========== MAIN ========== */
@@ -101,8 +131,8 @@ fs.mkdirSync(DEST, { recursive: true });
 console.log('Copiando de app-novia/ a dist/...');
 copyRecursive(SRC, DEST);
 
-console.log('\nEmbebiendo imagenes del pool en manifest.json...');
-embedPoolImages();
+console.log('\nEmbebiendo pool en index.html...');
+embedPoolIntoHtml();
 
 console.log('\nListo. Contenido de dist/:');
 const items = fs.readdirSync(DEST);
