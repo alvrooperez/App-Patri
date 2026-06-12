@@ -1,149 +1,147 @@
-name: Build APK
+name: Build APK (PWABuilder)
 
-# Buildea un APK firmada de la PWA con Bubblewrap (oficial de Google).
-# Se ejecuta en cada push a main y manualmente desde Actions.
+# Plan B: usa PWABuilder (Microsoft) para generar el APK.
+# Como PWABuilder no expone una API publica estable, este workflow:
+#   1. Verifica que la webapp esta publicada en GitHub Pages
+#   2. Crea un GitHub Issue con un link pre-rellenado a PWABuilder
+#   3. Tu haces click -> descargas el APK -> se lo mandas a tu novia
 #
-# QUE PASA AQUI:
-#  1. Bubblewrap genera una "clave de debug" (unica para este repo, se guarda
-#     en el secret DIGITALASSETLINK_KEY).
-#  2. Buildea el APK apuntando a la URL del TWA_ORIGIN (default: GitHub Pages).
-#  3. Sube el APK como artifact descargable.
+# Mas fiable que Bubblewrap (que es problematico en CI) y sigue
+# siendo 99% automatico. Lo unico manual es el click en PWABuilder
+# (porque Microsoft no expone una API publica estable).
 #
-# COMO LO USA TU NOVIA:
-#  1. Push a main
-#  2. Actions -> build-apk -> run mas reciente -> Artifacts -> app-debug-apk
-#  3. Descarga el .apk, mandaselo por WhatsApp/Telegram
-#  4. En el movil Android, abrir y "Instalar de fuente desconocida"
-#
-# SI QUIERES SUBIR A PLAY STORE:
-#  - Necesitas una cuenta de desarrollador ($25 una vez)
-#  - Cambiar la debug key por una release key propia
-#  - Documentacion: https://github.com/GoogleChromeLabs/bubblewrap/blob/main/docs/quickstart.md
+# ALTERNATIVA: si quieres 100% automatico, te explico al final como
+# instalar Bubblewrap en tu PC local y buildear ahi.
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'index.html'
+      - 'manifest.json'
+      - 'sw.js'
+      - 'assets/**'
+      - 'mensajes.json'
+      - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
-  build-apk:
+  check-pages:
+    name: Verify GitHub Pages is live
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    outputs:
+      is_live: ${{ steps.check.outcome }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
-
-      - name: Determine TWA origin
-        id: origin
+      - name: Wait for Pages to propagate
+        id: check
         run: |
-          if [ -n "${{ vars.TWA_ORIGIN }}" ]; then
-            ORIGIN="${{ vars.TWA_ORIGIN }}"
-          else
-            OWNER="${{ github.repository_owner }}"
-            REPO="${{ github.event.repository.name }}"
-            ORIGIN="https://${OWNER}.github.io/${REPO}"
-          fi
-          # quitar slash final
-          ORIGIN="${ORIGIN%/}"
+          URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifest.json"
+          echo "Checking: $URL"
+          # GitHub Pages puede tardar 1-2 min en propagar tras un push
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$URL" || echo "000")
+            echo "Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Pages is live!"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::warning::Pages no responde todavia, se generara el issue de todos modos"
+          exit 1
+
+  create-issue:
+    name: Create APK build issue
+    needs: check-pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate PWABuilder URL
+        id: url
+        run: |
+          ORIGIN="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          PWA_URL="https://www.pwabuilder.com/reportcard?site=${ORIGIN}"
+          echo "PWABuilder URL: $PWA_URL"
+          echo "pwa_url=${PWA_URL}" >> "$GITHUB_OUTPUT"
           echo "origin=${ORIGIN}" >> "$GITHUB_OUTPUT"
-          echo "Using TWA origin: ${ORIGIN}"
 
-      - name: Locate Java 17
-        id: java
-        run: |
-          # setup-java@4 con Temurin deja JAVA_HOME apuntando a la instalacion
-          # pero Bubblewrap quiere la ruta "tipo Windows" C:\...
-          # La conseguimos via which java
-          JAVA_BIN=$(which java)
-          # en ubuntu esto da /usr/bin/java, el HOME esta en $JAVA_HOME
-          echo "java_bin=${JAVA_BIN}" >> "$GITHUB_OUTPUT"
-          echo "java_home=${JAVA_HOME}" >> "$GITHUB_OUTPUT"
-          echo "Detected JAVA_HOME: ${JAVA_HOME}"
-
-      - name: Init Bubblewrap project
-        env:
-          # Bubblewrap en linux espera esta variable
-          JAVA_HOME: ${{ steps.java.outputs.java_home }}
-        run: |
-          # Bubblewrap init es interactivo: 1) instalar JDK? 2) ruta al JDK?
-          # 3) aplicacion ID? 4) version? 5+) metadatos.
-          #
-          # Al "Y/n" del JDK le decimos "N" (ya lo tenemos).
-          # Luego Bubblewrap IMPRIME la ruta del JDK que el encontro y
-          # pregunta "Path to your existing JDK 17:" -> le damos Enter (vacio)
-          # para que use la que el ya encontro.
-          # El resto de prompts son metadatos opcionales -> todos Enter.
-          if [ ! -d ".bubblewrap" ]; then
-            printf 'N\n\n\n\n\n\n\n\n' | bubblewrap init \
-              --manifest "${{ steps.origin.outputs.origin }}/manifest.json" \
-              --directory .bubblewrap
-          fi
-          # sanity check
-          ls -la .bubblewrap
-          cat .bubblewrap/twa-manifest.json 2>/dev/null | head -30 || echo "twa-manifest.json not created"
-
-      - name: Build APK
-        run: |
-          cd .bubblewrap
-          bubblewrap build
-
-      - name: Locate built APK
-        id: find-apk
-        run: |
-          # Bubblewrap genera app-release-signed.apk o app-release-unsigned-aligned.apk
-          APK=$(find .bubblewrap -maxdepth 3 -name "*.apk" | head -1)
-          if [ -z "$APK" ]; then
-            echo "::error::No se encontro ningun APK generado"
-            ls -laR .bubblewrap || true
-            exit 1
-          fi
-          echo "Found APK: $APK"
-          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
-          cp "$APK" app-release.apk
-          ls -la app-release.apk
-          file app-release.apk
-
-      - name: Extract assetlinks.json for verification
-        if: success()
-        run: |
-          if [ -f ".bubblewrap/assetlinks.json" ]; then
-            echo "### assetlinks.json (para verificar la APK)" >> "$GITHUB_STEP_SUMMARY"
-            echo "Sube esto a tu webapp en /.well-known/assetlinks.json" >> "$GITHUB_STEP_SUMMARY"
-            cat .bubblewrap/assetlinks.json >> "$GITHUB_STEP_SUMMARY"
-            cp .bubblewrap/assetlinks.json assetlinks.json
-          fi
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - name: Create issue with download instructions
+        uses: actions/github-script@v7
         with:
-          name: app-release-apk
-          path: app-release.apk
-          if-no-files-found: error
-          retention-days: 30
+          script: |
+            const pwaUrl = '${{ steps.url.outputs.pwa_url }}';
+            const origin = '${{ steps.url.outputs.origin }}';
+            const commit = context.payload.head_commit?.message || 'manual';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-      - name: Upload assetlinks.json artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: assetlinks-json
-          path: assetlinks.json
-          if-no-files-found: warn
-          retention-days: 30
+            // Cerrar issues viejos del mismo workflow
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'apk-build'
+            });
+            for (const i of issues.data) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: i.number,
+                state: 'closed'
+              });
+            }
+
+            const body = `## APK lista para generar
+
+Tu webapp esta publicada en: **${origin}**
+
+Ultimo commit: \`${commit}\`
+
+### Pasos (2 minutos)
+
+1. **Abre PWABuilder** con la URL ya rellenada:
+   ${pwaUrl}
+
+2. Click **"Package for stores"** -> **"Android"**
+
+3. Acepta los defaults. PWABuilder genera el APK en ~30 segundos.
+
+4. Click **"Download"** -> guarda el \`.apk\`
+
+5. **Manda el .apk a tu novia** por WhatsApp / Telegram / email
+
+6. En su Android, abre el APK y acepta "Instalar de fuente desconocida"
+
+### Si quieres build 100% automatico
+
+Instala [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) en tu PC:
+\`\`\`bash
+npm install -g @bubblewrap/cli
+bubblewrap init --manifest ${origin}/manifest.json
+bubblewrap build
+\`\`\`
+
+Saldra un APK en \`app-release-signed.apk\` lista para distribuir.
+
+---
+_Workflow run: ${runUrl}_
+`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `:package: APK lista para generar (${new Date().toISOString().split('T')[0]})`,
+              body: body,
+              labels: ['apk-build']
+            });
+
+      - name: Summary
+        run: |
+          echo "### APK Build Issue Created" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ve a la pestaña **Issues** del repo, hay un issue nuevo con" >> "$GITHUB_STEP_SUMMARY"
+          echo "el link directo a PWABuilder para generar la APK." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "PWABuilder URL: ${{ steps.url.outputs.pwa_url }}" >> "$GITHUB_STEP_SUMMARY"
