@@ -1,5 +1,5 @@
 /* Service worker basico: cachea la app para que funcione offline */
-const CACHE = 'mi-dia-a-dia-v1';
+const CACHE = 'mi-dia-a-dia-v2';
 const ASSETS = [
   './',
   './index.html',
