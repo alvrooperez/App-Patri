@@ -56,7 +56,35 @@ jobs:
       - name: Capacitor Sync
         run: npx cap sync android
 
-      # 7. Sobrescribir icono de la app con el nuestro (assets/icon/)
+      # 7. Sanity check: verificar que el dist tiene los assets criticos
+      - name: Verify dist contents
+        run: |
+          echo "=== Contenido de dist/ ==="
+          ls -la dist/
+          echo ""
+          echo "=== Contenido de dist/assets/ ==="
+          ls -la dist/assets/ 2>/dev/null || echo "NO HAY dist/assets/"
+          echo ""
+          echo "=== Contenido de dist/assets/pool/ ==="
+          ls -la dist/assets/pool/ 2>/dev/null | head -20 || echo "NO HAY dist/assets/pool/"
+          echo ""
+          echo "=== Contenido de dist/assets/pool/_opt/ (debe tener 12 JPGs) ==="
+          ls dist/assets/pool/_opt/*.jpg 2>/dev/null | wc -l
+          ls dist/assets/pool/_opt/ 2>/dev/null | head -10 || echo "NO HAY dist/assets/pool/_opt/"
+          echo ""
+          echo "=== Existe dist/assets/pool/manifest.json? ==="
+          if [ -f "dist/assets/pool/manifest.json" ]; then
+            echo "OK, existe"
+            head -20 dist/assets/pool/manifest.json
+          else
+            echo "::error::FALTA dist/assets/pool/manifest.json - la app no podra cargar fotos"
+            exit 1
+          fi
+          echo ""
+          echo "=== Existe dist/assets/icon/? ==="
+          ls -la dist/assets/icon/
+
+      # 8. Sobrescribir icono de la app con el nuestro (assets/icon/)
       - name: Override app icons
         run: |
           RES="android/app/src/main/res"
