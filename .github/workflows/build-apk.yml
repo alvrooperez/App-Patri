@@ -85,44 +85,16 @@ jobs:
           ls -la dist/assets/icon/
 
       # 8. Sobrescribir icono de la app con el nuestro (assets/icon/)
+      #    Usa un script Python aparte (scripts/make_icons.py) para evitar
+      #    los problemas de indentacion con heredocs en YAML
       - name: Override app icons
         run: |
-          RES="android/app/src/main/res"
-          # Mipmaps en diferentes densidades
-          mkdir -p "$RES/mipmap-mdpi" "$RES/mipmap-hdpi" "$RES/mipmap-xhdpi" "$RES/mipmap-xxhdpi" "$RES/mipmap-xxxhdpi"
-          # Usamos ImageMagick si esta disponible, sino Pillow via Python
-          if command -v convert &> /dev/null; then
-            echo "Usando ImageMagick"
-            for SIZE_NAME in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
-              DENSITY="${SIZE_NAME%:*}"; SIZE="${SIZE_NAME#*:}";
-              convert "dist/assets/icon/icon-512.png" -resize "${SIZE}x${SIZE}" \
-                "$RES/mipmap-${DENSITY}/ic_launcher.png"
-              convert "dist/assets/icon/icon-512.png" -resize "${SIZE}x${SIZE}" \
-                "$RES/mipmap-${DENSITY}/ic_launcher_round.png"
-            done
-          elif command -v python3 &> /dev/null; then
-            echo "Usando Pillow"
-            # Generamos el script de Python con su propia indentacion correcta
-            # (no necesita sangria de YAML porque es un archivo aparte)
-            python3 - <<'PYEOF'
-from PIL import Image
-import os
-src = Image.open('dist/assets/icon/icon-512.png')
-sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
-for d, s in sizes.items():
-    out_dir = f'android/app/src/main/res/mipmap-{d}'
-    os.makedirs(out_dir, exist_ok=True)
-    src.resize((s, s), Image.LANCZOS).save(f'{out_dir}/ic_launcher.png')
-    src.resize((s, s), Image.LANCZOS).save(f'{out_dir}/ic_launcher_round.png')
-print('Iconos generados en todas las densidades')
-PYEOF
-            echo "Pillow terminado"
-          else
-            echo "::error::Ni ImageMagick ni Python3+Pillow disponibles, no puedo redimensionar el icono"
-            exit 1
-          fi
+          python3 scripts/make_icons.py
           # Forzar uso de nuestro icono (no el adaptive de Android 8+)
+          RES="android/app/src/main/res"
           rm -f "$RES/mipmap-anydpi-v26/ic_launcher.xml" "$RES/mipmap-anydpi-v26/ic_launcher_round.xml" 2>/dev/null || true
+          echo "Iconos generados:"
+          find "$RES" -name "ic_launcher.png" | sort
 
       # 8. Configurar network_security_config para que el WebView pueda cargar
       #    todos los assets via fetch() (incluidos JPGs del pool)
@@ -130,29 +102,17 @@ PYEOF
         run: |
           RES="android/app/src/main/res"
           mkdir -p "$RES/xml"
-          # Escribir el XML directamente con cat + EOF (sin indentacion YAML conflictiva)
-          cat > "$RES/xml/network_security_config.xml" <<XMLEOF
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-    <base-config cleartextTrafficPermitted="true">
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </base-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">localhost</domain>
-    </domain-config>
-</network-security-config>
-XMLEOF
+          # Copiar el XML desde scripts/ (asi evitamos heredocs en YAML)
+          cp scripts/network_security_config.xml "$RES/xml/network_security_config.xml"
           echo "network_security_config.xml:"
           cat "$RES/xml/network_security_config.xml"
 
-          # Anadir referencia en AndroidManifest.xml (en la etiqueta <application>)
+          # Anadir referencia en AndroidManifest.xml
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if grep -q "networkSecurityConfig" "$MANIFEST"; then
             echo "AndroidManifest ya tiene networkSecurityConfig"
           else
-            # Usar perl para insertar antes del primer ">" en la etiqueta <application ...>
+            # Usar perl para insertar el atributo en la etiqueta <application ...>
             perl -i -pe 's|(<application[^>]*)|$1 android:networkSecurityConfig="@xml/network_security_config"|' "$MANIFEST"
             echo "Manifest actualizado:"
             head -20 "$MANIFEST"
