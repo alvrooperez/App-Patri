@@ -1,0 +1,12 @@
+{
+  "appId": "com.alvrooperez.midiaadia",
+  "appName": "Mi Dia a Dia",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#fff7f4"
+  }
+}

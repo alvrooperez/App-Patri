@@ -1,147 +1,79 @@
-name: Build APK (PWABuilder)
-
-# Plan B: usa PWABuilder (Microsoft) para generar el APK.
-# Como PWABuilder no expone una API publica estable, este workflow:
-#   1. Verifica que la webapp esta publicada en GitHub Pages
-#   2. Crea un GitHub Issue con un link pre-rellenado a PWABuilder
-#   3. Tu haces click -> descargas el APK -> se lo mandas a tu novia
-#
-# El cuerpo del issue esta en .github/ISSUE_TEMPLATE/apk-build.md
-# con placeholders {{ORIGIN}}, {{PWA_URL}}, {{COMMIT}}, {{RUN_URL}}.
+name: Build Android APK
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'index.html'
-      - 'manifest.json'
-      - 'sw.js'
-      - 'assets/**'
-      - 'mensajes.json'
-      - '.github/workflows/build-apk.yml'
-      - '.github/ISSUE_TEMPLATE/apk-build.md'
-  workflow_dispatch:
+    branches:
+      - main
+  workflow_dispatch:  # Permite compilar manualmente desde la pestaña Actions
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
-  check-pages:
-    name: Verify GitHub Pages is live
+  build:
+    name: Build APK
     runs-on: ubuntu-latest
-    outputs:
-      origin: ${{ steps.set.outputs.origin }}
-      is_live: ${{ steps.check.outcome }}
-    steps:
-      - name: Set origin
-        id: set
-        run: |
-          ORIGIN="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-          echo "origin=${ORIGIN}" >> "$GITHUB_OUTPUT"
-          echo "Origin: ${ORIGIN}"
+    timeout-minutes: 25
 
-      - name: Wait for Pages to propagate
-        id: check
-        run: |
-          URL="${{ steps.set.outputs.origin }}/manifest.json"
-          echo "Checking: $URL"
-          for i in 1 2 3 4 5 6; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$URL" || echo "000")
-            echo "Attempt $i: HTTP $STATUS"
-            if [ "$STATUS" = "200" ]; then
-              echo "Pages is live!"
-              exit 0
-            fi
-            sleep 20
-          done
-          echo "::warning::Pages no responde, se generara el issue de todos modos"
-          exit 1
-
-  create-issue:
-    name: Create APK build issue
-    needs: check-pages
-    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      # 1. Descargar el codigo del repo
+      - name: Checkout Code
         uses: actions/checkout@v5
 
-      - name: Generate URLs
-        id: urls
+      # 2. Configurar Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Instalar dependencias de Capacitor
+      - name: Install Dependencies
+        run: npm install
+
+      # 4. Copiar app-novia a dist/ (Capacitor necesita la webapp en dist/)
+      #    En vez de Vite, usamos un build.js simple que copia HTML estatico
+      - name: Build Web App
+        run: node build.js
+
+      # 5. Capacitor Sync (copia dist/ a android/app/src/main/assets/public/)
+      - name: Capacitor Sync
+        run: npx cap sync android
+
+      # 6. Configurar Java JDK 21 (requerido por Android Gradle moderno)
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      # 7. Permisos de ejecucion al gradlew
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x android/gradlew
+
+      # 8. Compilar el APK debug con Gradle
+      - name: Build APK with Gradle
         run: |
-          ORIGIN="${{ needs.check-pages.outputs.origin }}"
-          PWA_URL="https://www.pwabuilder.com/reportcard?site=${ORIGIN}"
-          COMMIT="${{ github.event.head_commit.message }}"
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          {
-            echo "origin=${ORIGIN}"
-            echo "pwa_url=${PWA_URL}"
-            echo "commit=${COMMIT}"
-            echo "run_url=${RUN_URL}"
-          } >> "$GITHUB_OUTPUT"
-          echo "PWA URL: ${PWA_URL}"
+          cd android
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Render issue body from template
-        id: render
-        run: |
-          ORIGIN="${{ steps.urls.outputs.origin }}"
-          PWA_URL="${{ steps.urls.outputs.pwa_url }}"
-          COMMIT="${{ steps.urls.outputs.commit }}"
-          RUN_URL="${{ steps.urls.outputs.run_url }}"
+      # 9. Subir el APK como artefacto descargable
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mi-dia-a-dia-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
 
-          # Reemplaza placeholders {{KEY}} por valores
-          sed -e "s|{{ORIGIN}}|${ORIGIN}|g" \
-              -e "s|{{PWA_URL}}|${PWA_URL}|g" \
-              -e "s|{{COMMIT}}|${COMMIT}|g" \
-              -e "s|{{RUN_URL}}|${RUN_URL}|g" \
-              .github/ISSUE_TEMPLATE/apk-build.md > /tmp/issue-body.md
-
-          echo "### Rendered body preview" >> "$GITHUB_STEP_SUMMARY"
-          head -5 /tmp/issue-body.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Create issue
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -e
-          echo "Creando issue con el link a PWABuilder..."
-
-          # Crear la label si no existe (best effort)
-          set +e
-          gh label create apk-build \
-            --name "apk-build" \
-            --description "Triggered automatically by build APK workflow" \
-            --color "f4a8bd" 2>/dev/null || echo "Label ya existe o no se pudo crear"
-          set -e
-
-          # Cerrar issues viejos del mismo workflow (best effort)
-          set +e
-          for n in $(gh issue list --label apk-build --state open --json number --jq '.[].number' 2>/dev/null); do
-            [ -z "$n" ] && continue
-            echo "Cerrando issue viejo #$n"
-            gh issue close "$n" --comment "Reemplazado por build nuevo" 2>/dev/null || true
-          done
-          set -e
-
-          # Crear el issue nuevo
-          TODAY=$(date +%Y-%m-%d)
-          gh issue create \
-            --title ":package: APK lista para generar (${TODAY})" \
-            --label apk-build \
-            --body-file /tmp/issue-body.md
-
-          echo "Issue creado OK"
-
+      # 10. Resumen con instrucciones
       - name: Summary
+        if: success()
         run: |
-          ORIGIN="${{ steps.urls.outputs.origin }}"
-          PWA_URL="${{ steps.urls.outputs.pwa_url }}"
-          {
-            echo "### APK Build Issue Created"
-            echo ""
-            echo "Ve a la pestaña **Issues** del repo, hay un issue nuevo con"
-            echo "el link directo a PWABuilder para generar la APK."
-            echo ""
-            echo "**PWABuilder URL:** $PWA_URL"
-            echo "**Origen:** $ORIGIN"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "### :tada: APK construida con exito!" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Descarga el artefacto **mi-dia-a-dia-apk** de arriba" >> "$GITHUB_STEP_SUMMARY"
+          echo "y mandaselo a tu novia por WhatsApp / Telegram." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ella abre el APK en su Android, acepta" >> "$GITHUB_STEP_SUMMARY"
+          echo "'Instalar de fuente desconocida' y listo." >> "$GITHUB_STEP_SUMMARY"

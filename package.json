@@ -1,0 +1,17 @@
+{
+  "name": "mi-dia-a-dia",
+  "version": "1.0.0",
+  "description": "App de habitos y gym - version Android via Capacitor",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "android:build": "npm run build && npm run cap:sync && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  }
+}
