@@ -122,7 +122,40 @@ PYEOF
           # Forzar uso de nuestro icono (no el adaptive de Android 8+)
           rm -f "$RES/mipmap-anydpi-v26/ic_launcher.xml" "$RES/mipmap-anydpi-v26/ic_launcher_round.xml" 2>/dev/null || true
 
-      # 8. Sobrescribir el nombre de la app
+      # 8. Configurar network_security_config para que el WebView pueda cargar
+      #    todos los assets via fetch() (incluidos JPGs del pool)
+      - name: Setup network security config
+        run: |
+          RES="android/app/src/main/res"
+          mkdir -p "$RES/xml"
+          cat > "$RES/xml/network_security_config.xml" <<'XMLEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+</network-security-config>
+XMLEOF
+          echo "network_security_config.xml:"
+          cat "$RES/xml/network_security_config.xml"
+
+          # Anadir referencia en AndroidManifest.xml (en la etiqueta <application>)
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if grep -q "networkSecurityConfig" "$MANIFEST"; then
+            echo "AndroidManifest ya tiene networkSecurityConfig"
+          else
+            # Usar perl para insertar antes del primer ">" en la etiqueta <application ...>
+            perl -i -pe 's|(<application[^>]*)|$1 android:networkSecurityConfig="@xml/network_security_config"|' "$MANIFEST"
+            echo "Manifest actualizado:"
+            head -20 "$MANIFEST"
+          fi
+
+      # 9. Sobrescribir el nombre de la app
       - name: Override app name
         run: |
           RES="android/app/src/main/res/values"
