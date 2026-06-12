@@ -102,7 +102,9 @@ jobs:
             done
           elif command -v python3 &> /dev/null; then
             echo "Usando Pillow"
-            cat > /tmp/make_icons.py <<'PYEOF'
+            # Generamos el script de Python con su propia indentacion correcta
+            # (no necesita sangria de YAML porque es un archivo aparte)
+            python3 - <<'PYEOF'
 from PIL import Image
 import os
 src = Image.open('dist/assets/icon/icon-512.png')
@@ -114,7 +116,7 @@ for d, s in sizes.items():
     src.resize((s, s), Image.LANCZOS).save(f'{out_dir}/ic_launcher_round.png')
 print('Iconos generados en todas las densidades')
 PYEOF
-            python3 /tmp/make_icons.py
+            echo "Pillow terminado"
           else
             echo "::error::Ni ImageMagick ni Python3+Pillow disponibles, no puedo redimensionar el icono"
             exit 1
@@ -128,7 +130,8 @@ PYEOF
         run: |
           RES="android/app/src/main/res"
           mkdir -p "$RES/xml"
-          cat > "$RES/xml/network_security_config.xml" <<'XMLEOF'
+          # Escribir el XML directamente con cat + EOF (sin indentacion YAML conflictiva)
+          cat > "$RES/xml/network_security_config.xml" <<XMLEOF
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
