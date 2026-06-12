@@ -121,6 +121,32 @@ function injectEmpty() {
   console.log('Pool vacio inyectado');
 }
 
+/* ========== EMBED MESSAGES INTO INDEX.HTML ========== */
+function embedMessagesIntoHtml() {
+  const messagesPath = path.join(SRC, 'mensajes.json');
+  if (!fs.existsSync(messagesPath)) {
+    console.log('No hay mensajes.json, saltando embed');
+    return;
+  }
+  const messages = JSON.parse(fs.readFileSync(messagesPath, 'utf-8'));
+
+  const htmlPath = path.join(DEST, 'index.html');
+  if (!fs.existsSync(htmlPath)) {
+    console.log('No hay index.html en dist/');
+    return;
+  }
+  let html = fs.readFileSync(htmlPath, 'utf-8');
+  // Eliminar inyeccion anterior
+  html = html.replace(/<script>window\.__MESSAGES__[\s\S]*?<\/script>/g, '');
+  // Inyectar antes de </head>, justo despues del pool si existe
+  const inject = `<script>window.__MESSAGES__ = ${JSON.stringify(messages)};</script>`;
+  if (html.includes('</head>')) {
+    html = html.replace('</head>', `  ${inject}\n</head>`);
+  }
+  fs.writeFileSync(htmlPath, html);
+  console.log(`Mensajes embebidos: ${Object.keys(messages).length} categorias`);
+}
+
 /* ========== MAIN ========== */
 console.log('Limpiando dist/...');
 if (fs.existsSync(DEST)) {
@@ -133,6 +159,9 @@ copyRecursive(SRC, DEST);
 
 console.log('\nEmbebiendo pool en index.html...');
 embedPoolIntoHtml();
+
+console.log('\nEmbebiendo mensajes en index.html...');
+embedMessagesIntoHtml();
 
 console.log('\nListo. Contenido de dist/:');
 const items = fs.readdirSync(DEST);

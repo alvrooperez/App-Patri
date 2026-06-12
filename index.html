@@ -1451,6 +1451,13 @@ let MESSAGES = {
   campeona:{ titulo: 'Que campeona', frases: ['Que campeona', 'Eres una crack', 'Lo bordas siempre'] },
 };
 async function loadMessagesFile() {
+  // 1) Preferir la variable global inyectada por build.js (funciona en
+  //    WebViews de Capacitor/PWABuilder donde fetch() esta restringido)
+  if (window.__MESSAGES__ && typeof window.__MESSAGES__ === 'object') {
+    MESSAGES = Object.assign(MESSAGES, window.__MESSAGES__);
+    return;
+  }
+  // 2) Fallback: cargar desde mensajes.json via fetch (funciona en navegador)
   try {
     const r = await fetch('mensajes.json?t=' + Date.now());
     if (r.ok) {
