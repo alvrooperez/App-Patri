@@ -98,29 +98,7 @@ jobs:
           echo "Iconos generados:"
           find "$RES" -name "ic_launcher.png" | sort
 
-      # 8. Configurar network_security_config para que el WebView pueda cargar
-      #    todos los assets via fetch() (incluidos JPGs del pool)
-      - name: Setup network security config
-        run: |
-          RES="android/app/src/main/res"
-          mkdir -p "$RES/xml"
-          # Copiar el XML desde scripts/ (asi evitamos heredocs en YAML)
-          cp scripts/network_security_config.xml "$RES/xml/network_security_config.xml"
-          echo "network_security_config.xml:"
-          cat "$RES/xml/network_security_config.xml"
-
-          # Anadir referencia en AndroidManifest.xml
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if grep -q "networkSecurityConfig" "$MANIFEST"; then
-            echo "AndroidManifest ya tiene networkSecurityConfig"
-          else
-            # Usar perl para insertar el atributo en la etiqueta <application ...>
-            perl -i -pe 's|(<application[^>]*)|$1 android:networkSecurityConfig="@xml/network_security_config"|' "$MANIFEST"
-            echo "Manifest actualizado:"
-            head -20 "$MANIFEST"
-          fi
-
-      # 9. Sobrescribir el nombre de la app
+      # 8. Sobrescribir el nombre de la app
       - name: Override app name
         run: |
           RES="android/app/src/main/res/values"
