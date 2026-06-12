@@ -106,7 +106,15 @@ jobs:
           set -e
           echo "Creando issue con el link a PWABuilder..."
 
-          # Cerrar issues viejos del mismo workflow (best effort, sin romper el job si falla)
+          # Crear la label si no existe (best effort)
+          set +e
+          gh label create apk-build \
+            --name "apk-build" \
+            --description "Triggered automatically by build APK workflow" \
+            --color "f4a8bd" 2>/dev/null || echo "Label ya existe o no se pudo crear"
+          set -e
+
+          # Cerrar issues viejos del mismo workflow (best effort)
           set +e
           for n in $(gh issue list --label apk-build --state open --json number --jq '.[].number' 2>/dev/null); do
             [ -z "$n" ] && continue
