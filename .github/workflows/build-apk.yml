@@ -6,12 +6,8 @@ name: Build APK (PWABuilder)
 #   2. Crea un GitHub Issue con un link pre-rellenado a PWABuilder
 #   3. Tu haces click -> descargas el APK -> se lo mandas a tu novia
 #
-# Mas fiable que Bubblewrap (que es problematico en CI) y sigue
-# siendo 99% automatico. Lo unico manual es el click en PWABuilder
-# (porque Microsoft no expone una API publica estable).
-#
-# ALTERNATIVA: si quieres 100% automatico, te explico al final como
-# instalar Bubblewrap en tu PC local y buildear ahi.
+# El cuerpo del issue esta en .github/ISSUE_TEMPLATE/apk-build.md
+# con placeholders {{ORIGIN}}, {{PWA_URL}}, {{COMMIT}}, {{RUN_URL}}.
 
 on:
   push:
@@ -23,6 +19,7 @@ on:
       - 'assets/**'
       - 'mensajes.json'
       - '.github/workflows/build-apk.yml'
+      - '.github/ISSUE_TEMPLATE/apk-build.md'
   workflow_dispatch:
 
 permissions:
@@ -34,14 +31,21 @@ jobs:
     name: Verify GitHub Pages is live
     runs-on: ubuntu-latest
     outputs:
+      origin: ${{ steps.set.outputs.origin }}
       is_live: ${{ steps.check.outcome }}
     steps:
+      - name: Set origin
+        id: set
+        run: |
+          ORIGIN="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          echo "origin=${ORIGIN}" >> "$GITHUB_OUTPUT"
+          echo "Origin: ${ORIGIN}"
+
       - name: Wait for Pages to propagate
         id: check
         run: |
-          URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifest.json"
+          URL="${{ steps.set.outputs.origin }}/manifest.json"
           echo "Checking: $URL"
-          # GitHub Pages puede tardar 1-2 min en propagar tras un push
           for i in 1 2 3 4 5 6; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" -L "$URL" || echo "000")
             echo "Attempt $i: HTTP $STATUS"
@@ -51,7 +55,7 @@ jobs:
             fi
             sleep 20
           done
-          echo "::warning::Pages no responde todavia, se generara el issue de todos modos"
+          echo "::warning::Pages no responde, se generara el issue de todos modos"
           exit 1
 
   create-issue:
@@ -59,89 +63,68 @@ jobs:
     needs: check-pages
     runs-on: ubuntu-latest
     steps:
-      - name: Generate PWABuilder URL
-        id: url
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate URLs
+        id: urls
         run: |
-          ORIGIN="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          ORIGIN="${{ needs.check-pages.outputs.origin }}"
           PWA_URL="https://www.pwabuilder.com/reportcard?site=${ORIGIN}"
-          echo "PWABuilder URL: $PWA_URL"
-          echo "pwa_url=${PWA_URL}" >> "$GITHUB_OUTPUT"
-          echo "origin=${ORIGIN}" >> "$GITHUB_OUTPUT"
+          COMMIT="${{ github.event.head_commit.message }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          {
+            echo "origin=${ORIGIN}"
+            echo "pwa_url=${PWA_URL}"
+            echo "commit=${COMMIT}"
+            echo "run_url=${RUN_URL}"
+          } >> "$GITHUB_OUTPUT"
+          echo "PWA URL: ${PWA_URL}"
 
-      - name: Create issue with download instructions
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const pwaUrl = '${{ steps.url.outputs.pwa_url }}';
-            const origin = '${{ steps.url.outputs.origin }}';
-            const commit = context.payload.head_commit?.message || 'manual';
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+      - name: Render issue body from template
+        id: render
+        run: |
+          ORIGIN="${{ steps.urls.outputs.origin }}"
+          PWA_URL="${{ steps.urls.outputs.pwa_url }}"
+          COMMIT="${{ steps.urls.outputs.commit }}"
+          RUN_URL="${{ steps.urls.outputs.run_url }}"
 
-            // Cerrar issues viejos del mismo workflow
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'apk-build'
-            });
-            for (const i of issues.data) {
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: i.number,
-                state: 'closed'
-              });
-            }
+          # Reemplaza placeholders {{KEY}} por valores
+          sed -e "s|{{ORIGIN}}|${ORIGIN}|g" \
+              -e "s|{{PWA_URL}}|${PWA_URL}|g" \
+              -e "s|{{COMMIT}}|${COMMIT}|g" \
+              -e "s|{{RUN_URL}}|${RUN_URL}|g" \
+              .github/ISSUE_TEMPLATE/apk-build.md > /tmp/issue-body.md
 
-            const body = `## APK lista para generar
+          echo "### Rendered body preview" >> "$GITHUB_STEP_SUMMARY"
+          head -5 /tmp/issue-body.md >> "$GITHUB_STEP_SUMMARY"
 
-Tu webapp esta publicada en: **${origin}**
+      - name: Create issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Cerrar issues viejos del mismo workflow
+          OLD=$(gh issue list --label apk-build --state open --json number --jq '.[].number' || true)
+          for n in $OLD; do
+            echo "Closing old issue #$n"
+            gh issue close "$n" --comment "Reemplazado por build nuevo" || true
+          done
 
-Ultimo commit: \`${commit}\`
-
-### Pasos (2 minutos)
-
-1. **Abre PWABuilder** con la URL ya rellenada:
-   ${pwaUrl}
-
-2. Click **"Package for stores"** -> **"Android"**
-
-3. Acepta los defaults. PWABuilder genera el APK en ~30 segundos.
-
-4. Click **"Download"** -> guarda el \`.apk\`
-
-5. **Manda el .apk a tu novia** por WhatsApp / Telegram / email
-
-6. En su Android, abre el APK y acepta "Instalar de fuente desconocida"
-
-### Si quieres build 100% automatico
-
-Instala [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) en tu PC:
-\`\`\`bash
-npm install -g @bubblewrap/cli
-bubblewrap init --manifest ${origin}/manifest.json
-bubblewrap build
-\`\`\`
-
-Saldra un APK en \`app-release-signed.apk\` lista para distribuir.
-
----
-_Workflow run: ${runUrl}_
-`;
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `:package: APK lista para generar (${new Date().toISOString().split('T')[0]})`,
-              body: body,
-              labels: ['apk-build']
-            });
+          gh issue create \
+            --title ":package: APK lista para generar ($(date +%Y-%m-%d))" \
+            --label apk-build \
+            --body-file /tmp/issue-body.md
 
       - name: Summary
         run: |
-          echo "### APK Build Issue Created" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ve a la pestaña **Issues** del repo, hay un issue nuevo con" >> "$GITHUB_STEP_SUMMARY"
-          echo "el link directo a PWABuilder para generar la APK." >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "PWABuilder URL: ${{ steps.url.outputs.pwa_url }}" >> "$GITHUB_STEP_SUMMARY"
+          ORIGIN="${{ steps.urls.outputs.origin }}"
+          PWA_URL="${{ steps.urls.outputs.pwa_url }}"
+          {
+            echo "### APK Build Issue Created"
+            echo ""
+            echo "Ve a la pestaña **Issues** del repo, hay un issue nuevo con"
+            echo "el link directo a PWABuilder para generar la APK."
+            echo ""
+            echo "**PWABuilder URL:** $PWA_URL"
+            echo "**Origen:** $ORIGIN"
+          } >> "$GITHUB_STEP_SUMMARY"
