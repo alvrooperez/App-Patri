@@ -68,23 +68,18 @@ jobs:
 
       - name: Init Bubblewrap project
         run: |
-          # Bubblewrap necesita generar twa-manifest.json a partir del manifest
-          # y el SHA256 de la clave de firma (assetlinks.json).
-          # Si ya existe el directorio .bubblewrap, no regenera.
-          #
-          # Flags clave:
-          #   --skip-jdk-install  : ya tenemos Java 17 instalado (setup-java)
-          #   --skip-meta-privacy : evita otro prompt interactivo
+          # Bubblewrap init es interactivo: pregunta si instalar JDK.
+          # Como ya tenemos Java 17 (setup-java), le decimos "N" (no instalar).
+          # Tambien pregunta por meta privacy info, dejamos vacio.
           if [ ! -d ".bubblewrap" ]; then
-            bubblewrap init \
+            # "N" = no instalar JDK, Enter vacios para resto
+            printf 'N\n\n\n\n\n\n' | bubblewrap init \
               --manifest "${{ steps.origin.outputs.origin }}/manifest.json" \
-              --directory .bubblewrap \
-              --skip-jdk-install \
-              --skip-meta-privacy
+              --directory .bubblewrap
           fi
           # sanity check
           ls -la .bubblewrap
-          cat .bubblewrap/twa-manifest.json | head -20
+          cat .bubblewrap/twa-manifest.json 2>/dev/null | head -30 || echo "twa-manifest.json not created"
 
       - name: Build APK
         run: |
