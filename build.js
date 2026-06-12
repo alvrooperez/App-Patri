@@ -1,8 +1,8 @@
 /**
- * Build script simple: copia la webapp de app-novia/ a dist/
- * Sustituye a Vite/Rollup porque la app es HTML estatico sin build step.
- *
- * Excluye archivos de dev, el proyecto Android generado, previews, etc.
+ * Build script: copia la webapp de app-novia/ a dist/
+ * Ademas EMBEBE las imagenes del pool en manifest.json como base64
+ * para que la app pueda usarlas sin hacer fetch() (importante en
+ * Capacitor WebView donde fetch() no funciona con assets locales).
  */
 const fs = require('fs');
 const path = require('path');
@@ -23,15 +23,14 @@ const EXCLUDE = new Set([
   'package-lock.json',
   'build.js',
   'capacitor.config.json',
+  'scripts',  // no incluir los scripts auxiliares
 ]);
 
 const EXCLUDE_EXT = new Set(['.pyc']);
-const EXCLUDE_PREFIX = new Set(['_', 'v1-', 'v2-', 'v3-', 'v4-', 'v5-', 'v6-', 'v7-', 'v8-', 'tmp_']);
 
 function shouldExclude(name) {
   if (EXCLUDE.has(name)) return true;
-  if (EXCLUDE_PREFIX.has(name.slice(0, name.includes('.') ? name.indexOf('.') : name.length))) return true;
-  for (const p of EXCLUDE_PREFIX) {
+  for (const p of ['_', 'v1-', 'v2-', 'v3-', 'v4-', 'v5-', 'v6-', 'v7-', 'v8-', 'tmp_']) {
     if (name.startsWith(p)) return true;
   }
   return false;
@@ -59,6 +58,40 @@ function copyRecursive(srcDir, destDir) {
   }
 }
 
+/* ========== EMBED POOL IMAGES INTO MANIFEST ========== */
+// Lee manifest.json y reemplaza cada src por base64
+function embedPoolImages() {
+  const manifestPath = path.join(DEST, 'assets', 'pool', 'manifest.json');
+  if (!fs.existsSync(manifestPath)) {
+    console.log('No hay manifest.json del pool, saltando embed');
+    return;
+  }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+  if (!manifest.photos || !manifest.photos.length) return;
+
+  let totalBytes = 0;
+  for (const photo of manifest.photos) {
+    // La ruta en manifest.json apunta a "assets/pool/_opt/<id>.jpg" que ahora
+    // esta en dist/assets/pool/_opt/<id>.jpg (porque el copy recursivo la puso ahi)
+    const imgPath = path.join(DEST, photo.src);
+    if (!fs.existsSync(imgPath)) {
+      console.log(`No encuentro imagen: ${imgPath}`);
+      continue;
+    }
+    const buf = fs.readFileSync(imgPath);
+    const b64 = buf.toString('base64');
+    const dataUri = `data:image/jpeg;base64,${b64}`;
+    photo.src = dataUri;
+    photo.thumb = dataUri;  // mismo para thumb (es pequeño)
+    photo.dataUri = true;   // flag para que la app sepa
+    totalBytes += buf.length;
+  }
+
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  console.log(`\nPool embebido: ${manifest.photos.length} imagenes, ${(totalBytes / 1024).toFixed(0)} KB total`);
+}
+
+/* ========== MAIN ========== */
 console.log('Limpiando dist/...');
 if (fs.existsSync(DEST)) {
   fs.rmSync(DEST, { recursive: true, force: true });
@@ -67,6 +100,9 @@ fs.mkdirSync(DEST, { recursive: true });
 
 console.log('Copiando de app-novia/ a dist/...');
 copyRecursive(SRC, DEST);
+
+console.log('\nEmbebiendo imagenes del pool en manifest.json...');
+embedPoolImages();
 
 console.log('\nListo. Contenido de dist/:');
 const items = fs.readdirSync(DEST);
