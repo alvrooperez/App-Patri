@@ -102,17 +102,19 @@ jobs:
             done
           elif command -v python3 &> /dev/null; then
             echo "Usando Pillow"
-            python3 -c "
-            from PIL import Image
-            import os
-            src = Image.open('dist/assets/icon/icon-512.png')
-            sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
-            for d, s in sizes.items():
-                os.makedirs(f'android/app/src/main/res/mipmap-{d}', exist_ok=True)
-                src.resize((s, s), Image.LANCZOS).save(f'android/app/src/main/res/mipmap-{d}/ic_launcher.png')
-                src.resize((s, s), Image.LANCZOS).save(f'android/app/src/main/res/mipmap-{d}/ic_launcher_round.png')
-            print('Iconos generados en todas las densidades')
-            "
+            cat > /tmp/make_icons.py <<'PYEOF'
+from PIL import Image
+import os
+src = Image.open('dist/assets/icon/icon-512.png')
+sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+for d, s in sizes.items():
+    out_dir = f'android/app/src/main/res/mipmap-{d}'
+    os.makedirs(out_dir, exist_ok=True)
+    src.resize((s, s), Image.LANCZOS).save(f'{out_dir}/ic_launcher.png')
+    src.resize((s, s), Image.LANCZOS).save(f'{out_dir}/ic_launcher_round.png')
+print('Iconos generados en todas las densidades')
+PYEOF
+            python3 /tmp/make_icons.py
           else
             echo "::error::Ni ImageMagick ni Python3+Pillow disponibles, no puedo redimensionar el icono"
             exit 1
