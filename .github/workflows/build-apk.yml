@@ -36,28 +36,38 @@ jobs:
       - name: Build Web App
         run: node build.js
 
-      # 5. Capacitor Sync (copia dist/ a android/app/src/main/assets/public/)
+      # 5. Anadir plataforma Android (solo la primera vez, idempotente)
+      - name: Capacitor Add Android
+        run: |
+          if [ ! -d "android" ]; then
+            echo "Primera vez: anadiendo plataforma Android..."
+            npx cap add android
+          else
+            echo "Plataforma Android ya existe, saltando cap add"
+          fi
+
+      # 6. Capacitor Sync (copia dist/ a android/app/src/main/assets/public/)
       - name: Capacitor Sync
         run: npx cap sync android
 
-      # 6. Configurar Java JDK 21 (requerido por Android Gradle moderno)
+      # 7. Configurar Java JDK 21 (requerido por Android Gradle moderno)
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '21'
 
-      # 7. Permisos de ejecucion al gradlew
+      # 8. Permisos de ejecucion al gradlew
       - name: Grant Execute Permission to Gradlew
         run: chmod +x android/gradlew
 
-      # 8. Compilar el APK debug con Gradle
+      # 9. Compilar el APK debug con Gradle
       - name: Build APK with Gradle
         run: |
           cd android
           ./gradlew assembleDebug --no-daemon
 
-      # 9. Subir el APK como artefacto descargable
+      # 10. Subir el APK como artefacto descargable
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -66,7 +76,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # 10. Resumen con instrucciones
+      # 11. Resumen con instrucciones
       - name: Summary
         if: success()
         run: |
