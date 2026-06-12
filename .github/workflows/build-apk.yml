@@ -66,14 +66,28 @@ jobs:
           echo "origin=${ORIGIN}" >> "$GITHUB_OUTPUT"
           echo "Using TWA origin: ${ORIGIN}"
 
-      - name: Init Bubblewrap project
+      - name: Locate Java 17
+        id: java
         run: |
-          # Bubblewrap init es interactivo: pregunta si instalar JDK.
-          # Como ya tenemos Java 17 (setup-java), le decimos "N" (no instalar).
-          # Tambien pregunta por meta privacy info, dejamos vacio.
+          # setup-java@4 con Temurin deja JAVA_HOME apuntando a la instalacion
+          # pero Bubblewrap quiere la ruta "tipo Windows" C:\...
+          # La conseguimos via which java
+          JAVA_BIN=$(which java)
+          # en ubuntu esto da /usr/bin/java, el HOME esta en $JAVA_HOME
+          echo "java_bin=${JAVA_BIN}" >> "$GITHUB_OUTPUT"
+          echo "java_home=${JAVA_HOME}" >> "$GITHUB_OUTPUT"
+          echo "Detected JAVA_HOME: ${JAVA_HOME}"
+
+      - name: Init Bubblewrap project
+        env:
+          # Bubblewrap en linux espera esta variable
+          JAVA_HOME: ${{ steps.java.outputs.java_home }}
+        run: |
+          # Bubblewrap init es interactivo: 1) instalar JDK? 2) ruta al JDK?
+          # Como ya tenemos Java 17 (setup-java), contestamos "N" y luego
+          # le damos la ruta. Despues deja vacio para el resto de prompts.
           if [ ! -d ".bubblewrap" ]; then
-            # "N" = no instalar JDK, Enter vacios para resto
-            printf 'N\n\n\n\n\n\n' | bubblewrap init \
+            printf 'N\n%s\n\n\n\n\n\n' "$JAVA_HOME" | bubblewrap init \
               --manifest "${{ steps.origin.outputs.origin }}/manifest.json" \
               --directory .bubblewrap
           fi
