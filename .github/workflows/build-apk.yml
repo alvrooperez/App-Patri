@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Generate URLs
         id: urls
@@ -103,17 +103,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Cerrar issues viejos del mismo workflow
-          OLD=$(gh issue list --label apk-build --state open --json number --jq '.[].number' || true)
-          for n in $OLD; do
-            echo "Closing old issue #$n"
-            gh issue close "$n" --comment "Reemplazado por build nuevo" || true
-          done
+          set -e
+          echo "Creando issue con el link a PWABuilder..."
 
+          # Cerrar issues viejos del mismo workflow (best effort, sin romper el job si falla)
+          set +e
+          for n in $(gh issue list --label apk-build --state open --json number --jq '.[].number' 2>/dev/null); do
+            [ -z "$n" ] && continue
+            echo "Cerrando issue viejo #$n"
+            gh issue close "$n" --comment "Reemplazado por build nuevo" 2>/dev/null || true
+          done
+          set -e
+
+          # Crear el issue nuevo
+          TODAY=$(date +%Y-%m-%d)
           gh issue create \
-            --title ":package: APK lista para generar ($(date +%Y-%m-%d))" \
+            --title ":package: APK lista para generar (${TODAY})" \
             --label apk-build \
             --body-file /tmp/issue-body.md
+
+          echo "Issue creado OK"
 
       - name: Summary
         run: |
