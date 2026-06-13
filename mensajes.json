@@ -1,39 +1,39 @@
 {
   "racha": {
-    "titulo": "Vas a topisima \u{1F525}",
+    "titulo": "Vas a topisima 🔥",
     "frases": [
-      "Llevas {n} d\u00edas seguidos, ni en duo",
-      "Semana completa,nadie puede contigo",
-      "Ni un d\u00eda has fallado, te mereces un helado",
+      "Llevas {n} días seguidos, ni en duo",
+      "Semana completa, nadie puede contigo",
+      "Ni un día has fallado, te mereces un helado",
       "Me debes {n} besos",
       "¿{n} cervecitas?"
     ]
   },
   "animo": {
-    "titulo": "Venga, hoy tambi\u00e9n",
+    "titulo": "Venga, hoy también",
     "frases": [
-      "Venga, t\u00fa puedes guapita",
-      "Mañana tambi\u00e9n que sino no nos vemos",
-      "Como dice mi padre:sin prisa, pero sin pausa",
+      "Venga, tú puedes guapita",
+      "Mañana también que sino no nos vemos",
+      "Como dice mi padre: sin prisa, pero sin pausa",
       "Ya te queda nadaa",
       "Un poquito más que ayer y menos que mañana",
       "Ya mismo nos vemos"
     ]
   },
   "logro": {
-    "titulo": "\u00A1Lo conseguiste! \u{1F389}",
+    "titulo": "¡Lo conseguiste! 🎉",
     "frases": [
-      "Cada d\u00eda m\u00e1s guapa",
+      "Cada día más guapa",
       "Pero que crack",
       "olee mi niñaa",
       "Eres la mejor del mundo mundial",
-      "INCRE\u00CDBLE!!!"
+      "INCREÍBLE!!!"
     ]
   },
   "fuerte": {
-    "titulo": "Qu\u00e9 fuerte est\u00e1s",
+    "titulo": "Qué fuerte estás",
     "frases": [
-      "Oye, est\u00e1s muy fuerte",
+      "Oye, estás muy fuerte",
       "¿Me llevas?",
       "No saques bíceps que me da miedo",
       "¿Tú me proteges?",
@@ -41,11 +41,11 @@
     ]
   },
   "campeona": {
-    "titulo": "Qu\u00e9 campeona",
+    "titulo": "Qué campeona",
     "frases": [
-      "Qu\u00e9 campeona",
+      "Qué campeona",
       "Eres una crack",
-      "Qu\u00e9 suerte tenngo contigo",
+      "Qué suerte tengo contigo",
       "Vamos vamoss",
       "Me encanta s"
     ]
