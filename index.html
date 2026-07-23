@@ -990,6 +990,120 @@
     line-height: 1;
     margin-top: 6px;
   }
+
+  /* ========== TAREAS ========== */
+  .task-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-left: 4px solid var(--t-color, var(--primary));
+    position: relative;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .task-card.done { opacity: 0.55; }
+  .task-card.overdue { border-left-color: #e88aa4; background: linear-gradient(90deg, #fde0e7 0%, var(--surface) 30%); }
+  .task-check {
+    width: 28px; height: 28px;
+    border: 2px solid var(--t-color, var(--primary));
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--t-color, var(--primary));
+    font-size: 16px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .task-check.done {
+    background: var(--t-color, var(--primary));
+    color: white;
+  }
+  .task-body { flex: 1; min-width: 0; }
+  .task-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .task-card.done .task-title { text-decoration: line-through; color: var(--text-2); }
+  .task-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--text-2);
+    flex-wrap: wrap;
+  }
+  .task-meta .cat-tag {
+    background: var(--t-color-soft, var(--primary-soft));
+    color: var(--t-color, var(--primary-deep));
+  }
+  .task-meta .due {
+    color: #c0394f;
+    font-weight: 600;
+  }
+  .task-meta .due-ok {
+    color: var(--text-2);
+  }
+  .task-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .task-actions button {
+    width: 30px; height: 30px;
+    border: 0; background: transparent;
+    color: var(--text-mute);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .task-actions button:hover { background: var(--surface-2); color: var(--text); }
+  .task-day {
+    font-size: 10px;
+    font-weight: 700;
+    color: #c0394f;
+    background: #ffe0e0;
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .day-picker {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 4px 0 8px;
+    margin: 0 -4px;
+  }
+  .day-picker::-webkit-scrollbar { display: none; }
+  .day-pill {
+    flex: 0 0 auto;
+    border: 0;
+    background: var(--surface-2);
+    color: var(--text-2);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 11px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: center;
+    min-width: 50px;
+    line-height: 1.2;
+  }
+  .day-pill .day-pill-num { display: block; font-size: 16px; font-weight: 700; color: var(--text); }
+  .day-pill.sel { background: linear-gradient(135deg, var(--primary), var(--lavender)); color: white; }
+  .day-pill.sel .day-pill-num { color: white; }
+  .day-pill.has-data::after {
+    content: "";
+    display: block;
+    width: 5px; height: 5px;
+    background: var(--mint);
+    border-radius: 50%;
+    margin: 4px auto 0;
+  }
+  .day-pill.sel.has-data::after { background: white; }
 </style>
 </head>
 <body>
@@ -1018,6 +1132,8 @@
         </div>
       </div>
     </div>
+
+    <div class="day-picker" id="day-picker"></div>
 
     <div class="section-title">
       <h2>Mis habitos</h2>
@@ -1065,6 +1181,45 @@
     <div id="exercise-list"></div>
   </section>
 
+  <!-- ========== VIEW: TAREAS ========== -->
+  <section class="view" id="view-tareas" hidden>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-ico mint">&#9989;</div>
+        <div>
+          <div class="stat-val" id="stat-tasks-done">0</div>
+          <div class="stat-lbl">Hechas hoy</div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="stat-ico peach">&#9201;</div>
+        <div>
+          <div class="stat-val" id="stat-tasks-overdue">0</div>
+          <div class="stat-lbl">Atrasadas</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h2>Mis tareas</h2>
+      <span class="sub" id="task-progress">0 pendientes</span>
+    </div>
+
+    <div class="filter-pills" id="task-filters">
+      <button class="pill active" data-tfilter="all">Todas</button>
+      <button class="pill" data-tfilter="pending">Pendientes</button>
+      <button class="pill" data-tfilter="done">Hechas</button>
+      <button class="pill" data-tfilter="overdue">Atrasadas</button>
+    </div>
+
+    <div class="list" id="task-list"></div>
+    <div class="empty-state" id="task-empty" hidden>
+      <div class="empty-emoji">&#9989;</div>
+      <div class="empty-text">Sin tareas</div>
+      <div class="empty-hint">Pulsa el + para anadir la primera</div>
+    </div>
+  </section>
+
   <section class="view" id="view-detail" hidden>
     <div id="detail-content"></div>
   </section>
@@ -1074,6 +1229,7 @@
   <nav class="tab-bar" id="tabBar">
     <button class="tab-btn active" data-tab="habitos"><span class="ico">&#10024;</span> Habitos</button>
     <button class="tab-btn" data-tab="gimnasio"><span class="ico">&#127947;</span> Gimnasio</button>
+    <button class="tab-btn" data-tab="tareas"><span class="ico">&#9989;</span> Tareas</button>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -1282,6 +1438,66 @@
   </div>
 </div>
 
+<!-- MODAL: TAREA -->
+<div class="modal-bg" id="modal-task">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <h3 class="modal-title" id="task-modal-title">Nueva tarea</h3>
+
+    <div class="field">
+      <label>Titulo</label>
+      <input class="input" id="t-title" placeholder="Ej: Comprar leche" maxlength="80" />
+    </div>
+
+    <div class="field">
+      <label>Categoria</label>
+      <select class="select" id="t-category" style="width:100%;border:0;background:var(--surface-2);border-radius:var(--radius-sm);padding:12px 14px;font-family:inherit;font-size:15px;color:var(--text);"></select>
+    </div>
+
+    <div class="field">
+      <div class="switch-row" style="margin-bottom:10px">
+        <div>
+          <div class="sw-label">Fecha limite</div>
+          <div class="sw-hint">Si no, es "para cuando pueda"</div>
+        </div>
+        <button type="button" class="switch" id="t-due-toggle"></button>
+      </div>
+      <input class="input" id="t-due" type="date" hidden />
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancelar</button>
+      <button class="btn btn-primary" id="t-save">Guardar</button>
+    </div>
+    <div class="btn-row" id="t-delete-row" hidden>
+      <button class="btn btn-danger" id="t-delete">Eliminar tarea</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CATEGORIA DE TAREA -->
+<div class="modal-bg" id="modal-task-cat">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <h3 class="modal-title">Nueva categoria</h3>
+
+    <div class="field">
+      <label>Nombre</label>
+      <input class="input" id="tc-name" placeholder="Ej: Trabajo" maxlength="30" />
+    </div>
+
+    <div class="field">
+      <label>Color</label>
+      <div class="color-grid" id="tc-colors"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-task-cat')">Cancelar</button>
+      <button class="btn btn-primary" id="tc-save">Crear categoria</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ========================================================================
    MI DIA A DIA - vanilla JS app
@@ -1314,13 +1530,16 @@ const CAT_BG = {
 let exFilter = 'all';
 let exCollapsed = {};
 
-let state = { habits: [], exercises: [] };
+let state = { habits: [], exercises: [], tasks: [], taskCategories: [] };
 let currentTab = 'habitos';
 let detailView = null;
 let currentHabit = null;
 let currentExercise = null;
 let pendingSession = null;
 let chartInstance = null;
+let currentTask = null;
+let taskFilter = 'all';
+let viewingDay = null; // null = hoy; ISO string = dia seleccionado (para atrasados)
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -1332,6 +1551,8 @@ function load() {
       const parsed = JSON.parse(raw);
       state.habits = parsed.habits || [];
       state.exercises = parsed.exercises || [];
+      state.tasks = parsed.tasks || [];
+      state.taskCategories = parsed.taskCategories || [];
     }
   } catch (e) {
     console.error('load error', e);
@@ -1372,7 +1593,10 @@ function fmtDate(s) {
 function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 
 function isHabitScheduledToday(habit) {
-  const dow = parseISO(todayISO()).getDay();
+  return isHabitScheduledOnDate(habit, todayISO());
+}
+function isHabitScheduledOnDate(habit, iso) {
+  const dow = parseISO(iso).getDay();
   if (habit.frequency === 'daily') return true;
   if (habit.frequency === 'weekdays') return dow >= 1 && dow <= 5;
   if (habit.frequency === 'custom') return (habit.days || []).includes(dow);
@@ -1436,8 +1660,9 @@ function goalMet(h, value) {
   const v = Number(value) || 0;
   return v >= (h.goal.target || 1);
 }
-function todayValue(h) {
-  const c = (h.completions || {})[todayISO()];
+function todayValue(h) { return todayValueFor(h, todayISO()); }
+function todayValueFor(h, iso) {
+  const c = (h.completions || {})[iso];
   if (c == null) return 0;
   return Number(c) || 0;
 }
@@ -1572,18 +1797,46 @@ document.addEventListener('click', (e) => {
 });
 
 /* ========== RENDER: HABITOS ========== */
+function renderDayPicker() {
+  const picker = $('#day-picker');
+  if (!picker) return;
+  picker.innerHTML = '';
+  const today = parseISO(todayISO());
+  // Mostrar ultimos 14 dias + "Hoy" destacado a la derecha
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const isToday = iso === todayISO();
+    const isSel = (viewingDay || todayISO()) === iso;
+    // Marcar dias con datos (algun habito completado o con valor)
+    const hasData = state.habits.some(h => h.completions && h.completions[iso]);
+    const dayNames = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+    const b = document.createElement('button');
+    b.className = 'day-pill' + (isSel ? ' sel' : '') + (hasData ? ' has-data' : '');
+    b.innerHTML = `${isToday ? '<span class="day-pill-num">' + d.getDate() + '</span>Hoy' : '<span class="day-pill-num">' + d.getDate() + '</span>' + dayNames[d.getDay()]}`;
+    b.addEventListener('click', () => {
+      viewingDay = isToday ? null : iso;
+      renderDayPicker();
+      renderHabits();
+    });
+    picker.appendChild(b);
+  }
+}
+
 function renderHabits() {
   const list = $('#habit-list');
-  const today = todayISO();
-  const scheduledToday = state.habits.filter(isHabitScheduledToday);
+  const today = viewingDay || todayISO();
+  const isTodayView = !viewingDay;
+  const scheduledToday = state.habits.filter(h => isHabitScheduledOnDate(h, today));
   const doneToday = scheduledToday.filter(h => goalMet(h, (h.completions || {})[today])).length;
 
   $('#stat-today').textContent = `${doneToday}/${scheduledToday.length}`;
-  $('#habit-progress').textContent = scheduledToday.length
-    ? `${doneToday} de ${scheduledToday.length} hoy`
-    : 'Anade tu primer habito';
+  $('#habit-progress').textContent = isTodayView
+    ? (scheduledToday.length ? `${doneToday} de ${scheduledToday.length} hoy` : 'Anade tu primer habito')
+    : `${doneToday} de ${scheduledToday.length} el ${today}`;
 
-  // Best streak
+  // Best streak (siempre desde hoy, da igual el dia que mires)
   const bestStreak = state.habits.reduce((m, h) => Math.max(m, calcStreak(h)), 0);
   $('#stat-streak').textContent = bestStreak;
 
@@ -1598,10 +1851,10 @@ function renderHabits() {
   }
   list.innerHTML = '';
   state.habits.forEach((h) => {
-    const todayVal = todayValue(h);
+    const todayVal = todayValueFor(h, today);
     const done = goalMet(h, todayVal);
-    const streak = calcStreak(h);
-    const scheduled = isHabitScheduledToday(h);
+    const streak = isTodayView ? calcStreak(h) : 0; // la racha solo tiene sentido en hoy
+    const scheduled = isHabitScheduledOnDate(h, today);
     const colorObj = COLORS.find(c => c.name === h.color) || COLORS[0];
     const card = document.createElement('div');
     card.className = 'card' + (h.photo ? ' has-photo' : '');
@@ -1662,44 +1915,51 @@ function renderHabits() {
 function toggleHabit(id, btn) {
   const h = state.habits.find(x => x.id === id);
   if (!h) return;
-  const today = todayISO();
+  const day = viewingDay || todayISO();
+  const isToday = day === todayISO();
   h.completions = h.completions || {};
-  const wasDone = !!goalMet(h, h.completions[today]);
+  const wasDone = !!goalMet(h, h.completions[day]);
   if (wasDone) {
-    delete h.completions[today];
+    delete h.completions[day];
   } else {
-    h.completions[today] = true;
-    btn.classList.add('pop');
-    const rect = btn.getBoundingClientRect();
-    confettiBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    setTimeout(() => btn.classList.remove('pop'), 500);
-    // detectar subida de racha a multiplo de 5
-    const newStreak = calcStreak(h);
-    if (newStreak > 0 && newStreak % 5 === 0) {
-      setTimeout(() => celebrate(h, { category: 'racha', streak: newStreak }), 350);
+    h.completions[day] = true;
+    if (isToday) {
+      btn.classList.add('pop');
+      const rect = btn.getBoundingClientRect();
+      confettiBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      setTimeout(() => btn.classList.remove('pop'), 500);
+      // detectar subida de racha a multiplo de 5
+      const newStreak = calcStreak(h);
+      if (newStreak > 0 && newStreak % 5 === 0) {
+        setTimeout(() => celebrate(h, { category: 'racha', streak: newStreak }), 350);
+      } else {
+        setTimeout(() => celebrate(h, { category: isGoalHabit(h) ? 'logro' : 'animo' }), 350);
+      }
     } else {
-      setTimeout(() => celebrate(h, { category: isGoalHabit(h) ? 'logro' : 'animo' }), 350);
+      toast('Marcado para el ' + day);
     }
   }
   save();
   renderHabits();
+  renderDayPicker();
 }
 
 function adjustHabit(id, delta, btn) {
   const h = state.habits.find(x => x.id === id);
   if (!h) return;
-  const today = todayISO();
+  const day = viewingDay || todayISO();
+  const isToday = day === todayISO();
   h.completions = h.completions || {};
-  const before = goalMet(h, h.completions[today]);
-  let v = Number(h.completions[today]) || 0;
+  const before = goalMet(h, h.completions[day]);
+  let v = Number(h.completions[day]) || 0;
   v = Math.max(0, v + delta);
   if (v === 0) {
-    delete h.completions[today];
+    delete h.completions[day];
   } else {
-    h.completions[today] = v;
+    h.completions[day] = v;
   }
   const after = goalMet(h, v);
-  if (!before && after) {
+  if (!before && after && isToday) {
     const rect = btn.getBoundingClientRect();
     confettiBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
     const newStreak = calcStreak(h);
@@ -1708,9 +1968,12 @@ function adjustHabit(id, delta, btn) {
     } else {
       setTimeout(() => celebrate(h, { category: 'logro' }), 250);
     }
+  } else if (!before && after) {
+    toast('Marcado para el ' + day);
   }
   save();
   renderHabits();
+  renderDayPicker();
 }
 
 function celebrate(habit, opts) {
@@ -2712,6 +2975,252 @@ function celebrateExercise(ex, pr) {
   showCheerModal({ name: ex.name, icon: '\u{1F3CB}\u{FE0F}', photo: ex.photo, id: ex.id }, text, 'fuerte');
 }
 
+/* ========== TAREAS: render, filtros, modales ========== */
+const TASK_COLOR_MAP = {
+  rosa: { val: '#f4a8bd', soft: '#fde0e7' },
+  lavanda: { val: '#c8b6e2', soft: '#ece4f5' },
+  menta: { val: '#a8d8c5', soft: '#dff0e8' },
+  peach: { val: '#ffcfa7', soft: '#ffe9d6' },
+  cielo: { val: '#b8d8e8', soft: '#e0eef5' },
+  coral: { val: '#f5a48f', soft: '#fde2d6' },
+  lila: { val: '#d4a8e8', soft: '#f0e0f5' },
+  amarillo: { val: '#f5d76e', soft: '#fcf3c8' },
+};
+function taskColor(catId) {
+  const c = state.taskCategories.find(x => x.id === catId);
+  if (!c) return TASK_COLOR_MAP.rosa;
+  return TASK_COLOR_MAP[c.color] || TASK_COLOR_MAP.rosa;
+}
+function isTaskOverdue(t) {
+  if (t.dueAt && t.dueAt < todayISO() && !t.completions[todayISO()]) return true;
+  return false;
+}
+function isTaskDoneToday(t) { return !!t.completions[todayISO()]; }
+
+function renderTasks() {
+  const list = $('#task-list');
+  const empty = $('#task-empty');
+  const tasks = state.tasks.slice();
+  // Orden: pendientes (atrasadas primero, luego con fecha limite, luego sin fecha), hechas al final
+  tasks.sort((a, b) => {
+    const da = isTaskDoneToday(a) ? 1 : 0;
+    const db = isTaskDoneToday(b) ? 1 : 0;
+    if (da !== db) return da - db;
+    const oa = isTaskOverdue(a) ? 0 : (a.dueAt ? 1 : 2);
+    const ob = isTaskOverdue(b) ? 0 : (b.dueAt ? 1 : 2);
+    if (oa !== ob) return oa - ob;
+    return a.createdAt.localeCompare(b.createdAt);
+  });
+  // Filtro
+  let filtered = tasks;
+  if (taskFilter === 'pending') filtered = tasks.filter(t => !isTaskDoneToday(t));
+  if (taskFilter === 'done') filtered = tasks.filter(t => isTaskDoneToday(t));
+  if (taskFilter === 'overdue') filtered = tasks.filter(t => isTaskOverdue(t));
+
+  // Stats
+  const doneToday = tasks.filter(t => isTaskDoneToday(t)).length;
+  const overdue = tasks.filter(t => isTaskOverdue(t)).length;
+  const pending = tasks.filter(t => !isTaskDoneToday(t)).length;
+  $('#stat-tasks-done').textContent = doneToday;
+  $('#stat-tasks-overdue').textContent = overdue;
+  $('#task-progress').textContent = pending + ' pendientes';
+
+  if (!filtered.length) {
+    list.innerHTML = '';
+    if (!tasks.length) {
+      empty.hidden = false;
+      empty.querySelector('.empty-text').textContent = 'Sin tareas';
+      empty.querySelector('.empty-hint').textContent = 'Pulsa el + para anadir la primera';
+    } else {
+      empty.hidden = false;
+      empty.querySelector('.empty-text').textContent = 'Nada en este filtro';
+      empty.querySelector('.empty-hint').textContent = 'Prueba a cambiar el filtro';
+    }
+    return;
+  }
+  empty.hidden = true;
+  list.innerHTML = '';
+  filtered.forEach((t) => {
+    const cat = state.taskCategories.find(c => c.id === t.categoryId);
+    const colors = taskColor(t.categoryId);
+    const done = isTaskDoneToday(t);
+    const overdue = isTaskOverdue(t);
+    const card = document.createElement('div');
+    card.className = 'task-card' + (done ? ' done' : '') + (overdue ? ' overdue' : '');
+    card.style.setProperty('--t-color', colors.val);
+    card.style.setProperty('--t-color-soft', colors.soft);
+    const dueTxt = t.dueAt ? `<span class="due">&#128197; ${t.dueAt}</span>` : '<span class="due-ok">Sin fecha</span>';
+    const age = daysSince(t.createdAt);
+    const ageTxt = age >= 1 ? `<span class="task-day">${age}d</span>` : '';
+    card.innerHTML = `
+      <button class="task-check ${done ? 'done' : ''}" data-act="toggle">${done ? '&#10003;' : ''}</button>
+      <div class="task-body">
+        <div class="task-title">${escapeHtml(t.title)}</div>
+        <div class="task-meta">
+          ${cat ? `<span class="cat-tag">${escapeHtml(cat.name)}</span>` : ''}
+          ${dueTxt}
+          ${ageTxt}
+        </div>
+      </div>
+      <div class="task-actions">
+        <button data-act="edit" title="Editar">&#9998;</button>
+        <button data-act="del" title="Borrar">&#10005;</button>
+      </div>
+    `;
+    card.querySelector('[data-act=toggle]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      t.completions = t.completions || {};
+      if (t.completions[todayISO()]) delete t.completions[todayISO()];
+      else t.completions[todayISO()] = true;
+      save();
+      renderTasks();
+    });
+    card.querySelector('[data-act=edit]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTaskForm(t.id);
+    });
+    card.querySelector('[data-act=del]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('Eliminar tarea?')) {
+        state.tasks = state.tasks.filter(x => x.id !== t.id);
+        save();
+        renderTasks();
+      }
+    });
+    list.appendChild(card);
+  });
+}
+
+function daysSince(iso) {
+  const d = parseISO(iso);
+  const t = parseISO(todayISO());
+  return Math.round((t - d) / (1000 * 60 * 60 * 24));
+}
+
+function openTaskForm(id) {
+  currentTask = id;
+  const t = id ? state.tasks.find(x => x.id === id) : null;
+  // Rellenar select de categorias
+  const sel = $('#t-category');
+  sel.innerHTML = '';
+  state.taskCategories.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id;
+    o.textContent = c.name;
+    sel.appendChild(o);
+  });
+  // Opcion para crear nueva categoria (al final)
+  const oNew = document.createElement('option');
+  oNew.value = '__new__';
+  oNew.textContent = '+ Nueva categoria...';
+  sel.appendChild(oNew);
+  sel.onchange = () => { if (sel.value === '__new__') openTaskCategoryForm(); };
+  if (t) {
+    $('#t-title').value = t.title || '';
+    sel.value = t.categoryId || (state.taskCategories[0] && state.taskCategories[0].id) || '';
+    const dueToggle = $('#t-due-toggle');
+    if (t.dueAt) {
+      dueToggle.classList.add('on');
+      $('#t-due').hidden = false;
+      $('#t-due').value = t.dueAt;
+    } else {
+      dueToggle.classList.remove('on');
+      $('#t-due').hidden = true;
+      $('#t-due').value = '';
+    }
+    $('#task-modal-title').textContent = 'Editar tarea';
+    $('#t-delete-row').hidden = false;
+  } else {
+    $('#t-title').value = '';
+    sel.value = (state.taskCategories[0] && state.taskCategories[0].id) || '';
+    $('#t-due-toggle').classList.remove('on');
+    $('#t-due').hidden = true;
+    $('#t-due').value = '';
+    $('#task-modal-title').textContent = 'Nueva tarea';
+    $('#t-delete-row').hidden = true;
+  }
+  openModal('modal-task');
+  setTimeout(() => $('#t-title').focus(), 250);
+}
+function saveTaskForm() {
+  const title = $('#t-title').value.trim();
+  if (!title) { toast('Pon un titulo \u2728'); return; }
+  const categoryId = $('#t-category').value;
+  if (categoryId === '__new__' || !categoryId) { toast('Elige una categoria'); return; }
+  const dueOn = $('#t-due-toggle').classList.contains('on');
+  const dueAt = dueOn ? $('#t-due').value || null : null;
+  if (currentTask) {
+    const t = state.tasks.find(x => x.id === currentTask);
+    t.title = title;
+    t.categoryId = categoryId;
+    t.dueAt = dueAt;
+    toast('Tarea actualizada');
+  } else {
+    state.tasks.push({
+      id: uid(),
+      title,
+      categoryId,
+      createdAt: todayISO(),
+      dueAt,
+      completions: {},
+    });
+    toast('Tarea creada');
+  }
+  save();
+  closeModal('modal-task');
+  renderTasks();
+}
+function deleteTaskForm() {
+  if (!currentTask) return;
+  if (!confirm('Eliminar esta tarea?')) return;
+  state.tasks = state.tasks.filter(x => x.id !== currentTask);
+  save();
+  closeModal('modal-task');
+  renderTasks();
+  toast('Tarea eliminada');
+}
+function openTaskCategoryForm() {
+  $('#tc-name').value = '';
+  // Pintar paleta de colores
+  const grid = $('#tc-colors');
+  grid.innerHTML = '';
+  ['rosa', 'lavanda', 'menta', 'peach', 'cielo', 'coral', 'lila', 'amarillo'].forEach((c, i) => {
+    const sw = document.createElement('div');
+    sw.className = 'color-pick' + (i === 0 ? ' sel' : '');
+    sw.style.background = TASK_COLOR_MAP[c].val;
+    sw.title = c;
+    sw.addEventListener('click', () => {
+      $$('#tc-colors .color-pick').forEach(x => x.classList.remove('sel'));
+      sw.classList.add('sel');
+    });
+    grid.appendChild(sw);
+  });
+  openModal('modal-task-cat');
+}
+function saveTaskCategoryForm() {
+  const name = $('#tc-name').value.trim();
+  if (!name) { toast('Pon un nombre'); return; }
+  const sel = $('#tc-colors .color-pick.sel');
+  if (!sel) { toast('Elige un color'); return; }
+  const color = sel.title;
+  const cat = { id: uid(), name, color };
+  state.taskCategories.push(cat);
+  save();
+  closeModal('modal-task-cat');
+  toast('Categoria creada');
+  // Si estamos en el form de tarea, refrescar el select y seleccionar la nueva
+  if (!$('#modal-task').classList.contains('open')) {
+    openTaskForm(currentTask);  // re-abre con la nueva categoria disponible
+  } else {
+    const sel2 = $('#t-category');
+    const o = document.createElement('option');
+    o.value = cat.id;
+    o.textContent = cat.name;
+    sel2.insertBefore(o, sel2.lastChild);
+    sel2.value = cat.id;
+  }
+}
+
 /* ========== TABS & VIEWS ========== */
 function currentView() {
   if (!$('#view-habitos').hidden) return 'view-habitos';
@@ -2733,21 +3242,28 @@ function showView(id) {
   window.scrollTo(0, 0);
 }
 function closeDetailView() {
-  showView(currentTab === 'habitos' ? 'view-habitos' : 'view-gimnasio');
-  if (currentTab === 'habitos') renderHabits(); else renderExercises();
+  showView(currentTab === 'habitos' ? 'view-habitos' : (currentTab === 'tareas' ? 'view-tareas' : 'view-gimnasio'));
+  if (currentTab === 'habitos') renderHabits();
+  else if (currentTab === 'tareas') renderTasks();
+  else renderExercises();
 }
 
 $$('#tabBar .tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     currentTab = btn.dataset.tab;
     $$('#tabBar .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
-    showView(currentTab === 'habitos' ? 'view-habitos' : 'view-gimnasio');
-    if (currentTab === 'habitos') renderHabits(); else renderExercises();
+    if (currentTab === 'habitos') showView('view-habitos');
+    else if (currentTab === 'tareas') showView('view-tareas');
+    else showView('view-gimnasio');
+    if (currentTab === 'habitos') renderHabits();
+    else if (currentTab === 'tareas') renderTasks();
+    else renderExercises();
   });
 });
 
 $('#fab').addEventListener('click', () => {
   if (currentTab === 'habitos') openHabitForm(null);
+  else if (currentTab === 'tareas') openTaskForm(null);
   else openExerciseForm(null);
 });
 
@@ -2776,7 +3292,7 @@ function renderHeader() {
 
 /* ========== SEED (first run) ========== */
 function maybeSeed() {
-  if (state.habits.length || state.exercises.length) return;
+  if (state.habits.length || state.exercises.length || state.taskCategories.length) return;
   // Friendly defaults
   state.habits = [
     {
@@ -2800,6 +3316,24 @@ function maybeSeed() {
     { id: uid(), name: 'Press de banca', notes: '', category: 'pecho', color: 'rosa', sessions: [], createdAt: todayISO() },
     { id: uid(), name: 'Peso muerto', notes: '', category: 'espalda', color: 'lila', sessions: [], createdAt: todayISO() },
   ];
+  // Categorias de tareas por defecto
+  state.taskCategories = [
+    { id: uid(), name: 'Personal', color: 'rosa' },
+    { id: uid(), name: 'Casa', color: 'menta' },
+    { id: uid(), name: 'Trabajo', color: 'lavanda' },
+    { id: uid(), name: 'Compras', color: 'peach' },
+  ];
+  // Una tarea de ejemplo para que se vea que funciona
+  state.tasks = [
+    {
+      id: uid(),
+      title: 'Beber 2 litros de agua',
+      categoryId: state.taskCategories[0].id,
+      createdAt: todayISO(),
+      dueAt: null,
+      completions: {},
+    },
+  ];
   save();
 }
 
@@ -2812,7 +3346,9 @@ async function init() {
   await Promise.all([loadMessagesFile(), loadPhotoPool()]);
   renderHeader();
   renderHabits();
+  renderDayPicker();
   renderExercises();
+  renderTasks();
 
   // Search & filters
   $('#ex-search').addEventListener('input', (e) => {
@@ -2832,6 +3368,26 @@ async function init() {
       renderExercises();
     });
   });
+
+  // Task filters
+  $$('#task-filters .pill').forEach(p => {
+    p.addEventListener('click', () => {
+      $$('#task-filters .pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      taskFilter = p.dataset.tfilter;
+      renderTasks();
+    });
+  });
+
+  // Task form: due date toggle
+  $('#t-due-toggle').addEventListener('click', () => {
+    const on = $('#t-due-toggle').classList.toggle('on');
+    $('#t-due').hidden = !on;
+    if (on && !$('#t-due').value) $('#t-due').value = todayISO();
+  });
+  $('#t-save').addEventListener('click', saveTaskForm);
+  $('#t-delete').addEventListener('click', deleteTaskForm);
+  $('#tc-save').addEventListener('click', saveTaskCategoryForm);
 
   // Habit form: photo upload
   setupPhotoUpload('h');
@@ -2921,3 +3477,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+<!--TAREAS_MARK-->
