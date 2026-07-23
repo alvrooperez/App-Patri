@@ -3145,17 +3145,24 @@ function openTaskForm(id) {
 function saveTaskForm() {
   const title = $('#t-title').value.trim();
   if (!title) { toast('Pon un titulo \u2728'); return; }
+  // Asegurarse de que state.tasks existe (por si acaso)
+  if (!Array.isArray(state.tasks)) state.tasks = [];
   const categoryId = $('#t-category').value;
   if (categoryId === '__new__' || !categoryId) { toast('Elige una categoria'); return; }
   const dueOn = $('#t-due-toggle').classList.contains('on');
-  const dueAt = dueOn ? $('#t-due').value || null : null;
+  const dueAt = dueOn ? ($('#t-due').value || null) : null;
   if (currentTask) {
     const t = state.tasks.find(x => x.id === currentTask);
-    t.title = title;
-    t.categoryId = categoryId;
-    t.dueAt = dueAt;
-    toast('Tarea actualizada');
-  } else {
+    if (t) {
+      t.title = title;
+      t.categoryId = categoryId;
+      t.dueAt = dueAt;
+      toast('Tarea actualizada');
+    } else {
+      currentTask = null; // id stale, crear nueva
+    }
+  }
+  if (!currentTask) {
     state.tasks.push({
       id: uid(),
       title,
@@ -3166,9 +3173,17 @@ function saveTaskForm() {
     });
     toast('Tarea creada');
   }
+  console.log('saveTaskForm: state.tasks tiene', state.tasks.length, 'tareas');
   save();
   closeModal('modal-task');
+  // Forzar re-render: si la pestana no esta activa, cambiamos a ella
+  if (currentTab !== 'tareas') {
+    currentTab = 'tareas';
+    $$('#tabBar .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tareas'));
+    showView('view-tareas');
+  }
   renderTasks();
+  console.log('renderTasks llamado, contador deberia ser', state.tasks.length);
 }
 function deleteTaskForm() {
   if (!currentTask) return;
