@@ -3244,7 +3244,7 @@ function currentView() {
   return null;
 }
 function showView(id) {
-  ['view-habitos', 'view-gimnasio', 'view-detail'].forEach(v => {
+  ['view-habitos', 'view-gimnasio', 'view-tareas', 'view-detail'].forEach(v => {
     $('#' + v).hidden = v !== id;
   });
   if (id !== 'view-detail') {
